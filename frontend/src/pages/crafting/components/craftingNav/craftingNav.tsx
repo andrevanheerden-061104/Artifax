@@ -1,4 +1,5 @@
-import React, { FC } from 'react';
+import React, { FC, useEffect, useState } from 'react';
+import { useApi } from '../../../../hooks';
 import './craftingNav.css';
 
 interface NavItem {
@@ -14,12 +15,37 @@ interface CraftingNavProps {
 }
 
 const navData: NavItem[] = [
-  { id: 'active', label: 'Active Jobs', badge: 3 },
+  { id: 'active', label: 'Active Jobs', badge: 0 },
   { id: 'craft', label: 'Craft', badge: null },
   { id: 'history', label: 'History', badge: null },
 ];
 
 const CraftingNav: FC<CraftingNavProps> = ({ activeTab, onTabChange, onCreateBlueprint }) => {
+  const api = useApi();
+  const [activeCount, setActiveCount] = useState<number>(0);
+
+  // Live count of jobs that are crafting right now (Active or Paused)
+  useEffect(() => {
+    let mounted = true;
+    const load = () => {
+      api
+        .get<Array<{ status?: string }>>('/Order')
+        .then((response) => {
+          if (!mounted) return;
+          const count = (response.data ?? []).filter((order) => ['active', 'paused'].includes((order.status ?? '').toLowerCase())).length;
+          setActiveCount(count);
+        })
+        .catch(() => undefined);
+    };
+    load();
+    const interval = window.setInterval(load, 60_000);
+    window.addEventListener('crafting-order-updated', load);
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+      window.removeEventListener('crafting-order-updated', load);
+    };
+  }, [api]);
   return (
     <div className="nav-container">
       {/* Tab Group */}
@@ -32,7 +58,7 @@ const CraftingNav: FC<CraftingNavProps> = ({ activeTab, onTabChange, onCreateBlu
             >
               {tab.label}
               {tab.badge !== null && (
-                <span className="nav-badge nav-pill">{tab.badge}</span>
+                <span className={`nav-badge nav-pill ${activeCount === 0 ? 'is-zero' : ''}`}>{activeCount}</span>
               )}
             </button>
         ))}

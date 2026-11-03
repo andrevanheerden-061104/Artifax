@@ -71,7 +71,6 @@ function Sidebar() {
     (async () => {
       try {
         const me = await getCurrentUserFromSession();
-        console.log('Sidebar /User/me response:', me);
         if (mounted) {
           setSessionUser(me);
         }
@@ -123,7 +122,13 @@ function Sidebar() {
       </div>
 
       <div className="sidebar-footer">
-        <button type="button" className="sidebar-profile-button" aria-label={`${userName} profile`}>
+        <button
+          type="button"
+          className="sidebar-profile-button"
+          aria-label={`${userName} profile`}
+          title="Open my profile"
+          onClick={() => navigate('/users?me=1')}
+        >
           <span className="user-avatar" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="8" r="3.4" />

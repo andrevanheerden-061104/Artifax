@@ -486,12 +486,16 @@ html[data-theme='synthwave'] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  height: 20px;
-  padding: 0 6px;
+  box-sizing: border-box;
+  min-width: 30px;
+  height: 22px;
+  padding: 0 10px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
   color: #fff;
   background: var(--chip);
 }
@@ -781,4 +785,98 @@ html[data-theme='synthwave'] .item-kind-option svg {
 
 .Toastify__toast-container .Toastify__progress-bar--bg {
   background: transparent;
+}
+
+/* ---------------------------------------------------------------
+   Number inputs: plain text-style boxes, no up/down spinner arrows
+   --------------------------------------------------------------- */
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------
+   Table action buttons (View / Edit) — coloured so they stand out
+   --------------------------------------------------------------- */
+.row-action {
+  --act: #38bdf8;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--act) 55%, transparent);
+  background: color-mix(in srgb, var(--act) 16%, var(--surface));
+  color: var(--text);
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+
+.row-action svg {
+  width: 16px;
+  height: 16px;
+  color: var(--act);
+}
+
+.row-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--act) 28%, var(--surface));
+  border-color: var(--act);
+  transform: translateY(-1px);
+}
+
+.row-action.is-open {
+  background: var(--act);
+  color: #0b1220;
+}
+
+.row-action.is-open svg {
+  color: #0b1220;
+}
+
+.row-action--edit {
+  --act: #f2884b;
+}
+
+.row-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Category group header row (Inventory "Sort: Category") */
+tr.cat-group-row td {
+  padding: 14px 0 6px 4px;
+}
+
+.cat-group-label {
+  --cat: #9b87f5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.cat-group-label svg {
+  color: var(--cat);
+}
+
+.cat-group-label span {
+  font-size: 11px;
+  letter-spacing: 0;
+  color: var(--muted);
 }

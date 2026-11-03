@@ -6,6 +6,7 @@ import SectionCard from '../../components/common/SectionCard';
 import StatCard from '../../components/common/StatCard';
 import StatusBadge from '../../components/common/StatusBadge';
 import Tabs from '../../components/common/Tabs';
+import Pagination from '../../components/common/Pagination';
 import AlertStrip from '../../components/layout/AlertStrip';
 import PageHeader from '../../components/layout/PageHeader';
 import InventoryMaterialsPopover from './components/InventoryMaterialsPopover';
@@ -15,11 +16,10 @@ import InventoryItemIngredientModal from './components/InventoryItemIngredientMo
 import RestockModal from './components/RestockModal';
 import { createInventoryItem, getBlueprintProductIds, getItemCategoryOptions, getItems, getInventoryOverview, getItemMaterialDetails, restockBranch, updateInventoryItem, InventoryCreatedItem, InventoryItem, InventoryMaterialDetails, InventoryOverview, InventoryItemCreate, InventoryItemUpdate, RestockLine } from '../../services/inventoryApi';
 import { getCurrentDateSAST } from '../../Date/dateUtils';
-import { CategoryBadge, CategoryTile, categoryStyle } from '../../components/common/categories';
+import { CATEGORIES, CategoryBadge, CategoryIcon, CategoryTile, categoryStyle, getCategory, normalizeCategory } from '../../components/common/categories';
 import { useWorkspace } from '../../utils/workspace';
 import { showError, showSuccess } from '../../utils/toast';
-import editIcon from '../../assets/images/Edit Icon.png';
-import viewIcon from '../../assets/images/View Icon.png';
+import { EyeIcon, PencilIcon } from '../../components/common/ActionIcons';
 
 function InventoryPage() {
   const currentDate = getCurrentDateSAST();
@@ -41,6 +41,8 @@ function InventoryPage() {
   const [ingredientItem, setIngredientItem] = useState<InventoryCreatedItem | null>(null);
 
   const [restockOpen, setRestockOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 15;
   const [restocking, setRestocking] = useState(false);
   const [blueprintItemIds, setBlueprintItemIds] = useState<Set<number>>(new Set());
 
@@ -261,9 +263,24 @@ function InventoryPage() {
         if (sortBy === 'QTY') {
           return (right.quantity || 0) - (left.quantity || 0);
         }
+        if (sortBy === 'CATEGORY') {
+          // Metal, Mechanical, Electronics, Furniture, … each grouped together
+          const order = (item: InventoryItem) => CATEGORIES.findIndex((category) => category.id === normalizeCategory(item.category));
+          return order(left) - order(right) || (left.name || '').localeCompare(right.name || '');
+        }
         return (left.name || '').localeCompare(right.name || '');
       });
   }, [activeTab, sourceItems, search, sortBy, status, zone]);
+
+  // Back to page 1 whenever the filters change
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, search, sortBy, status, zone]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const columnCount = workspace.isAllView ? 8 : 7;
+  const pagedItems = filteredItems.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
 
   return (
@@ -307,7 +324,7 @@ function InventoryPage() {
 
       <SectionCard title={workspace.isAllView ? 'All warehouses' : `${warehouseName ?? 'Warehouse'} inventory`} subtitle={`${sourceItems.length} stock rows`}>
         <div className="space-y-3">
-          <div className="grid items-end gap-2 lg:grid-cols-[minmax(0,2.4fr),repeat(3,minmax(0,1fr))]">
+          <div className={`grid items-end gap-2 ${workspace.isAllView ? 'lg:grid-cols-[minmax(0,2.4fr),repeat(3,minmax(0,1fr))]' : 'lg:grid-cols-[minmax(0,2.4fr),repeat(2,minmax(0,1fr))]'}`}>
             <SearchInput value={search} onChange={setSearch} placeholder="Search items, SKU, location..." />
             <FilterSelect
               value={status}
@@ -318,13 +335,15 @@ function InventoryPage() {
                 { label: 'Status: Low', value: 'LOW' },
               ]}
             />
-            <FilterSelect value={zone} onChange={setZone} options={locationOptions} />
+            {/* Only admins in the all-warehouses overview can filter by location */}
+            {workspace.isAllView ? <FilterSelect value={zone} onChange={setZone} options={locationOptions} /> : null}
             <FilterSelect
               value={sortBy}
               onChange={setSortBy}
               options={[
                 { label: 'Sort: Name', value: 'NAME' },
                 { label: 'Sort: Quantity', value: 'QTY' },
+                { label: 'Sort: Category', value: 'CATEGORY' },
               ]}
             />
           </div>
@@ -339,20 +358,34 @@ function InventoryPage() {
                   <th className="pb-2 font-medium">Category</th>
                   <th className="pb-2 pr-8 text-right font-medium">Qty</th>
                   <th className="pb-2 pl-4 font-medium">Prod.</th>
-                  <th className="pb-2 font-medium">Location</th>
+                  {workspace.isAllView ? <th className="pb-2 font-medium">Location</th> : null}
                   <th className="pb-2 font-medium">Status</th>
                   <th className="pb-2 font-medium">Edit</th>
                   <th className="pb-2 font-medium">View</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map((item, index) => {
+                {pagedItems.map((item, index) => {
                   const itemId = Number(item.id);
                   const isExpanded = expandedViewItemId === itemId;
                   const uniqueRowKey = `${item.id}-${item.location || 'none'}-${index}`;
+                  const groupId = normalizeCategory(item.category);
+                  const startsGroup = sortBy === 'CATEGORY' && (index === 0 || normalizeCategory(pagedItems[index - 1].category) !== groupId);
+                  const groupCount = startsGroup ? filteredItems.filter((row) => normalizeCategory(row.category) === groupId).length : 0;
 
                   return (
                     <React.Fragment key={uniqueRowKey}>
+                      {startsGroup ? (
+                        <tr className="cat-group-row">
+                          <td colSpan={columnCount}>
+                            <span className="cat-group-label" style={categoryStyle(groupId)}>
+                              <CategoryIcon category={groupId} size={15} />
+                              {getCategory(groupId).label}
+                              <span>{groupCount} item{groupCount === 1 ? '' : 's'}</span>
+                            </span>
+                          </td>
+                        </tr>
+                      ) : null}
                       <tr className={`cat-row border-b border-border/70 ${isExpanded ? 'is-open' : ''}`} style={categoryStyle(item.category)}>
                         <td className="py-2.5 pl-3 pr-3">
                           <div className="flex items-center gap-3">
@@ -368,27 +401,27 @@ function InventoryPage() {
                         <td className="py-2.5 pl-4 pr-3">
                           <p className="text-xs text-muted">{item.productionTime} min</p>
                         </td>
-                        <td className="inventory-location-cell py-2.5 pr-3 text-muted">{item.location}</td>
+                        {workspace.isAllView ? <td className="inventory-location-cell py-2.5 pr-3 text-muted">{item.location}</td> : null}
                         <td className="py-2.5 pr-3">
                           <StatusBadge status={item.status} />
                         </td>
                         <td className="py-2.5 pr-3">
                           <button
                             type="button"
-                            className={`icon-action-button ${readOnly ? 'is-readonly-disabled' : ''}`}
+                            className="row-action row-action--edit"
                             aria-label={`Edit ${item.name}`}
                             title={readOnly ? 'Switch to a warehouse to edit' : `Edit ${item.name}`}
                             disabled={readOnly}
                             onClick={() => handleEditClick(item)}
                           >
-                            <img src={editIcon} alt="" aria-hidden="true" className="icon-action-button-icon" />
-                            <span className="sr-only">Edit</span>
+                            <PencilIcon />
+                            Edit
                           </button>
                         </td>
                         <td className="py-2.5">
                           <button
                             type="button"
-                            className={`icon-action-button ${isExpanded ? 'border-primary bg-bg text-text' : ''}`}
+                            className={`row-action ${isExpanded ? 'is-open' : ''}`}
                             aria-label={`View ${item.name}`}
                             aria-controls={`inventory-details-${item.id}`}
                             aria-expanded={isExpanded}
@@ -396,15 +429,15 @@ function InventoryPage() {
                               void handleViewClick(item);
                             }}
                           >
-                            <img src={viewIcon} alt="" aria-hidden="true" className="icon-action-button-icon" />
-                            <span className="sr-only">View</span>
+                            <EyeIcon />
+                            {isExpanded ? 'Close' : 'View'}
                           </button>
                         </td>
                       </tr>
 
                       {isExpanded ? (
                         <tr className="border-b border-border/70 bg-app/60">
-                          <td colSpan={8} className="px-0 py-3">
+                          <td colSpan={columnCount} className="px-0 py-3">
                             <div id={`inventory-details-${item.id}`} className="inventory-view-details px-0 sm:px-1">
                               <InventoryMaterialsPopover
                                 loading={loadingMaterialItemId === itemId && materialDetailsById[itemId] === undefined}
@@ -425,6 +458,16 @@ function InventoryPage() {
               <p className="py-6 text-center text-sm text-muted">No items match your current filters.</p>
             ) : null}
           </div>
+          <Pagination
+            page={currentPage}
+            pageSize={PAGE_SIZE}
+            total={filteredItems.length}
+            noun="items"
+            onChange={(next) => {
+              setPage(next);
+              setExpandedViewItemId(null);
+            }}
+          />
           <InventoryItemEditModal
             item={editingItemId != null ? sourceItems.find((candidate) => Number(candidate.id) === editingItemId) ?? null : null}
             open={editingItemId != null}

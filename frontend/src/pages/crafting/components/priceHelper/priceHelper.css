@@ -1,0 +1,117 @@
+.price-helper {
+  --tone: var(--muted);
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, var(--border));
+  background: color-mix(in srgb, var(--tone) 8%, var(--surface));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.price-helper--ok { --tone: #22c55e; }
+.price-helper--bad { --tone: #ef4444; }
+
+.price-helper-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.price-helper-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.price-helper-row strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.price-helper-margin {
+  color: var(--tone) !important;
+}
+
+.price-helper-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.price-helper-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.price-helper-actions button {
+  flex: 1;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.price-helper-actions button:hover {
+  border-color: var(--primary);
+}
+
+/* Shared 3-column grid so the price row and the material rows line up:
+   [ main field ][ Amount needed ][ remove ×] */
+.new-blueprint-form .bp-grid-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px 57px;
+  gap: 16px;
+  align-items: start;
+}
+
+.new-blueprint-form .price-row .price-helper {
+  grid-column: 2 / 4;
+  margin-top: 0;
+  align-self: stretch;
+  justify-content: center;
+}
+
+.price-row-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 16px;
+  align-items: end;
+}
+
+.price-row-fields .field-group {
+  min-width: 0;
+}
+
+/* Compact helper so it fits the narrower column */
+.price-row .price-helper {
+  padding: 8px 12px;
+  gap: 4px;
+}
+
+.price-row .price-helper-actions button {
+  padding: 4px 6px;
+}
+
+@media (max-width: 900px) {
+  .new-blueprint-form .bp-grid-row {
+    grid-template-columns: 1fr;
+  }
+
+  .new-blueprint-form .price-row .price-helper {
+    grid-column: auto;
+  }
+
+  .price-row-fields {
+    grid-template-columns: 1fr;
+  }
+}

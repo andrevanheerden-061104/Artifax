@@ -34,9 +34,12 @@
 }
 
 .most-crafted-list {
+  --mc-card-h: 90px;
   display: grid;
+  grid-auto-rows: var(--mc-card-h);
   gap: 10px;
-  max-height: 520px;
+  /* exactly four cards visible, the rest scroll */
+  max-height: calc(var(--mc-card-h) * 4 + 10px * 3);
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -123,5 +126,19 @@
   align-items: center;
   margin-top: 6px;
   font-size: 11px;
+  color: var(--muted);
+}
+
+.mc-card {
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.mc-card.is-zero {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.mc-card.is-zero .mc-count {
   color: var(--muted);
 }

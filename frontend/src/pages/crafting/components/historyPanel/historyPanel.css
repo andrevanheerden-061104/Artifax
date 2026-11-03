@@ -318,3 +318,25 @@
 .icon-action-button.active {
   opacity: 0.6;
 }
+
+/* Status pill used by the Inventory-style history table */
+.history-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.history-status.is-complete {
+  border: 1px solid color-mix(in srgb, #22c55e 50%, transparent);
+  background: color-mix(in srgb, #22c55e 15%, transparent);
+}
+
+.history-status.is-cancelled {
+  border: 1px solid color-mix(in srgb, #ef4444 50%, transparent);
+  background: color-mix(in srgb, #ef4444 15%, transparent);
+}

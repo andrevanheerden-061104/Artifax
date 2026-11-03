@@ -1,14 +1,7 @@
-import React, { FC, useEffect, useState } from 'react';
+import { FC, useEffect, useState } from 'react';
 import './historyStats.css';
-import inventoryIcon from '../../../../assets/images/inventoryIcon.png';
-import inventoryIconWhite from '../../../../assets/images/inventoryIconWhite.png';
-import cancelledIcon from '../../../../assets/images/cancelledIcon.png';
-import cancelledIconWhite from '../../../../assets/images/cancelledIconWhite.png';
-import completedIcon from '../../../../assets/images/completeIcon.png';
-import completedIconWhite from '../../../../assets/images/completeIconWhite.png';
-import avgDurationIcon from '../../../../assets/images/durationIcon.png';
-import avgDurationIconWhite from '../../../../assets/images/durationIconWhite.png';
-import { useApi, useThemeAwareIcon } from '../../../../hooks';
+import { useApi } from '../../../../hooks';
+import KpiCard from '../../../../components/common/KpiCard';
 
 interface OrderDto {
   orderID: number;
@@ -28,10 +21,6 @@ const formatDuration = (minutes: number): string => {
 
 const HistoryStats: FC = () => {
   const api = useApi();
-  const totalJobsIconSrc = useThemeAwareIcon(inventoryIcon, inventoryIconWhite);
-  const cancelledIconSrc = useThemeAwareIcon(cancelledIcon, cancelledIconWhite);
-  const completedIconSrc = useThemeAwareIcon(completedIcon, completedIconWhite);
-  const avgDurationIconSrc = useThemeAwareIcon(avgDurationIcon, avgDurationIconWhite);
   const [totalJobs, setTotalJobs] = useState<number>(0);
   const [cancelledItems, setCancelledItems] = useState<number>(0);
   const [completedItems, setCompletedItems] = useState<number>(0);
@@ -83,24 +72,12 @@ const HistoryStats: FC = () => {
     void loadStats();
   }, [api]);
 
-  const stats = [
-    { label: 'Total Jobs', value: String(totalJobs), icon: <img src={totalJobsIconSrc} alt="Total Jobs" /> },
-    { label: 'Cancelled', value: String(cancelledItems), icon: <img src={cancelledIconSrc} alt="Cancelled" /> },
-    { label: 'Completed', value: String(completedItems), icon: <img src={completedIconSrc} alt="Completed" /> },
-    { label: 'Avg Duration', value: avgDuration, icon: <img src={avgDurationIconSrc} alt="Avg Duration" /> },
-  ];
-
   return (
-    <div className="history-stats-container">
-      {stats.map((stat, index) => (
-        <div key={index} className="history-card">
-          <div className="history-icon-wrapper">{stat.icon}</div>
-          <div className="history-text-wrapper">
-            <span className="history-label">{stat.label}</span>
-            <span className="history-value">{stat.value}</span>
-          </div>
-        </div>
-      ))}
+    <div className="kpi-grid history-kpis">
+      <KpiCard label="In queue" value={totalJobs} caption="Waiting to start" tone="blue" icon="list" />
+      <KpiCard label="Cancelled" value={cancelledItems} caption="Units cancelled" tone="red" icon="cross" />
+      <KpiCard label="Completed" value={completedItems} caption="Units crafted" tone="green" icon="check" />
+      <KpiCard label="Avg duration" value={avgDuration} caption="Order to finish" tone="orange" icon="clock" />
     </div>
   );
 };

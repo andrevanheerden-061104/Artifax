@@ -1,6 +1,7 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useEffect, useMemo, useState } from 'react';
 import Button from '../../../../components/common/Button';
-import FilterSelect from '../../../../components/common/FilterSelect';
+import ItemPicker, { PickerItem } from '../../../../components/common/ItemPicker';
+import PriceHelper from '../priceHelper/PriceHelper';
 import { useApi } from '../../../../hooks';
 import { showError, showSuccess } from '../../../../utils/toast';
 import './blueprintEdit.css';
@@ -19,11 +20,6 @@ interface BlueprintEditProps {
   onSaved: () => void;
 }
 
-interface ItemOption {
-  value: string;
-  label: string;
-}
-
 
 const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) => {
   const api = useApi();
@@ -33,7 +29,7 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
   const [price, setPrice] = useState<number>(0);
   const [materials, setMaterials] = useState<MaterialRow[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [itemOptions, setItemOptions] = useState<ItemOption[]>([]);
+  const [itemOptions, setItemOptions] = useState<Array<PickerItem & { price?: number | null }>>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +49,8 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
         setItemOptions(
           items
             .filter((item: any) => item?.itemName)
-            .map((item: any) => ({ value: item.itemName, label: item.itemName }))
+            .filter((item: any) => Number(item.itemID ?? item.ItemID) !== itemId)
+            .map((item: any) => ({ name: item.itemName, category: item.itemCategory, isCrafted: Number(item.productionTime ?? 0) > 0, price: item.price == null ? null : Number(item.price) }))
         );
 
         const item = itemResponse.data;
@@ -80,6 +77,19 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
 
     loadBlueprint();
   }, [api, itemId]);
+
+  // Material cost of the recipe, from each material's price × amount
+  const { baseCost, unpricedCount } = useMemo(() => {
+    let cost = 0;
+    let unpriced = 0;
+    materials.forEach((material) => {
+      if (!material.item) return;
+      const option = itemOptions.find((item) => item.name === material.item);
+      if (option?.price == null) unpriced += 1;
+      else cost += option.price * (material.amount || 0);
+    });
+    return { baseCost: cost, unpricedCount: unpriced };
+  }, [materials, itemOptions]);
 
   const handleMaterialChange = (id: string, field: 'item' | 'amount', value: string | number) => {
     setMaterials((current) =>
@@ -231,7 +241,9 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
           <CategoryPicker value={category} onChange={setCategory} />
         </div>
 
-        <div className="field-row field-row--split">
+        {/* Craft time + price on the left; material cost lines up with the "Amount needed" + remove columns below */}
+        <div className="bp-grid-row price-row">
+          <div className="price-row-fields">
           <div className="field-group field-group--craft-time">
             <label htmlFor="craftTimeMinutes">Craft Time (min)</label>
             <input
@@ -253,28 +265,28 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
                 type="number"
                 min={0}
                 step={0.01}
-                value={price}
+                inputMode="decimal"
+                value={price === 0 ? '' : price}
                 onChange={(e) => setPrice(Number(e.target.value || 0))}
                 className="field-input"
                 placeholder="0.00"
               />
             </div>
           </div>
+          </div>
+          <PriceHelper baseCost={baseCost} unpricedCount={unpricedCount} price={Number(price) || 0} onUsePrice={setPrice} />
         </div>
 
         <label>Required materials</label>
         <div className="material-list">
           {materials.map((material) => (
-            <div key={material.id} className="materials-row">
-              <FilterSelect
+            <div key={material.id} className="materials-row bp-grid-row">
+              <ItemPicker
                 value={material.item}
                 onChange={(value) => handleMaterialChange(material.id, 'item', value)}
-                options={[
-                  { value: '', label: 'None selected' },
-                  ...itemOptions,
-                ]}
-                className="field-select material-select"
-                ariaLabel="Select material"
+                items={itemOptions}
+                taken={materials.map((row) => row.item).filter(Boolean)}
+                placeholder="Choose a material"
               />
 
               <div className="amount-line">

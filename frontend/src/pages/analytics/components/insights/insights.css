@@ -217,3 +217,169 @@
   font-size: 11px;
   color: var(--muted);
 }
+
+.kpi-text {
+  min-width: 0;
+}
+
+.kpi-text .kpi-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Production activity (stacked daily bars) */
+.activity-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.activity-head h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.activity-head p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.activity-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--app);
+}
+
+.seg button {
+  padding: 5px 11px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.seg button.is-active {
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.activity-chart {
+  position: relative;
+  height: 260px;
+  padding-left: 54px;
+}
+
+.activity-gridlines {
+  position: absolute;
+  inset: 0 0 22px 54px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.activity-gridlines span {
+  position: relative;
+  border-top: 1px dashed var(--border);
+}
+
+.activity-gridlines span::before {
+  content: attr(data-label);
+  position: absolute;
+  right: calc(100% + 8px);
+  top: -8px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.activity-bars {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.activity-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.activity-col.is-hovered {
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.activity-stack {
+  width: min(100%, 34px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: 8px 8px 3px 3px;
+  overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.activity-stack span {
+  display: block;
+  min-height: 3px;
+}
+
+.activity-stack span + span {
+  border-bottom: 1px solid var(--surface);
+}
+
+.activity-col.is-best .activity-stack {
+  box-shadow: 0 0 0 2px color-mix(in srgb, #f5c542 70%, transparent);
+}
+
+.activity-day {
+  height: 16px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.activity-best {
+  margin-left: auto;
+  color: var(--muted);
+}
+
+.activity-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 220px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.activity-empty strong {
+  color: var(--text);
+}

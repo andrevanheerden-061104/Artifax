@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import '../crafting/crafting.css';
 import AlertStrip from '../../components/layout/AlertStrip';
 import PageHeader from '../../components/layout/PageHeader';
-import GraphCard from './components/graph/graph';
+import ProductionActivity from './components/insights/ProductionActivity';
 import MostCrafted from './components/mostCarfted/mostCarfted';
 import { AnalyticsKpis, MaterialForecast } from './components/insights/AnalyticsInsights';
 import { useAnalyticsData } from './components/insights/useAnalyticsData';
@@ -30,8 +30,8 @@ const AnalyticsPage: React.FC = () => {
         <AnalyticsKpis data={data} />
 
         <div className="analytics-grid">
-          <GraphCard />
-          <MostCrafted orders={data.orders} loading={data.loading} />
+          <ProductionActivity data={data} />
+          <MostCrafted orders={data.orders} blueprints={data.blueprints} loading={data.loading} />
         </div>
 
         <MaterialForecast data={data} />

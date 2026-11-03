@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import PageHeader from '../../components/layout/PageHeader';
 import SectionCard from '../../components/common/SectionCard';
 import StatCard from '../../components/common/StatCard';
+import Pagination from '../../components/common/Pagination';
 import { CategoryTile } from '../../components/common/categories';
 import CraftingQueue from '../crafting/components/craftingQueue/craftingQueue';
 import { buildInventoryOverview, getInventoryItems, InventoryItem } from '../../services/inventoryApi';
@@ -31,6 +32,8 @@ function DashboardPage() {
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [loadingInventory, setLoadingInventory] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<boolean>(false);
+  const [warningPage, setWarningPage] = useState<number>(1);
+  const WARNINGS_PER_PAGE = 5;
 
   useEffect(() => {
     let mounted = true;
@@ -73,6 +76,9 @@ function DashboardPage() {
   }, [warnings]);
 
   const showLocation = workspace.isAllView;
+  const warningPages = Math.max(1, Math.ceil(warnings.length / WARNINGS_PER_PAGE));
+  const currentWarningPage = Math.min(warningPage, warningPages);
+  const pagedWarnings = warnings.slice((currentWarningPage - 1) * WARNINGS_PER_PAGE, currentWarningPage * WARNINGS_PER_PAGE);
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -123,7 +129,7 @@ function DashboardPage() {
             </div>
           ) : (
             <ul className="dash-warning-list">
-              {warnings.map((item, index) => {
+              {pagedWarnings.map((item, index) => {
                 const severity = severityOf(item);
                 const percent = Math.min(100, Math.round((item.quantity / Math.max(1, item.minStock)) * 100));
                 return (
@@ -151,6 +157,11 @@ function DashboardPage() {
               })}
             </ul>
           )}
+          {warnings.length > WARNINGS_PER_PAGE ? (
+            <div className="mt-3">
+              <Pagination page={currentWarningPage} pageSize={WARNINGS_PER_PAGE} total={warnings.length} noun="warnings" onChange={setWarningPage} />
+            </div>
+          ) : null}
         </SectionCard>
 
         {/* Same queue as the Crafting page: active crafts first, then queued pages */}

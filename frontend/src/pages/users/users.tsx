@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { isAdminUser } from '../../utils/workspace';
 import PageHeader from '../../components/layout/PageHeader';
 import CraeteUsersPage from './componets/craeteUser/craeteusers';
 import UserDirectory from './componets/userDirectory/UserDirectory';
@@ -28,6 +30,26 @@ const Users: React.FC = () => {
   const [loading, setLoading] = useState(true);
   // list -> view (profile) / edit / create
   const [mode, setMode] = useState<'list' | 'view' | 'edit' | 'create'>('list');
+  const location = useLocation();
+  const navigate = useNavigate();
+  const backToList = () => {
+    if (location.search) navigate('/users', { replace: true });
+    setMode('list');
+  };
+  const me = getCurrentUser();
+  const viewerIsAdmin = isAdminUser(me);
+  const wantsOwnProfile = new URLSearchParams(location.search).has('me') || !viewerIsAdmin;
+
+  // Clicking your name in the sidebar opens /users?me — jump straight to your own profile
+  useEffect(() => {
+    if (!wantsOwnProfile || users.length === 0 || !me?.email) return;
+    const own = users.find((candidate) => candidate.email.toLowerCase() === me.email!.toLowerCase());
+    if (own) {
+      setSelectedUserId(own.id);
+      setMode('view');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [users, location.key, wantsOwnProfile]);
   // ensure we only try fetching users once per page load
   const usersFetchedRef = useRef(false);
 
@@ -179,7 +201,7 @@ const Users: React.FC = () => {
       await api.delete(`/User/employee?id=${encodeURIComponent(String(id))}`);
       await fetchUsers();
       setSelectedUserId(null);
-      setMode('list');
+      backToList();
       showSuccess('User deleted successfully.');
       // do not clear or change current session when deleting a user
     } catch (err) {
@@ -230,11 +252,11 @@ const Users: React.FC = () => {
       <div className="space-y-4 sm:space-y-5">
         <PageHeader 
  
-          title="User Management"
-          subtitle={`${users.length} accounts · ${currentDate}`}
+          title={viewerIsAdmin ? 'User Management' : 'My profile'}
+          subtitle={viewerIsAdmin ? `${users.length} accounts · ${currentDate}` : currentDate}
         />
 
-        {mode === 'list' ? (
+        {mode === 'list' && viewerIsAdmin ? (
           <UserDirectory
             users={users}
             loading={loading}
@@ -258,8 +280,9 @@ const Users: React.FC = () => {
           <UserProfile
             user={selectedUser}
             branchName={branchMap[Number(selectedUser.branch)] ?? `Warehouse ${selectedUser.branch}`}
-            isCurrentUser={getCurrentUser()?.email?.toLowerCase() === selectedUser.email.toLowerCase()}
-            onBack={() => setMode('list')}
+            isCurrentUser={me?.email?.toLowerCase() === selectedUser.email.toLowerCase()}
+            canManage={viewerIsAdmin}
+            onBack={viewerIsAdmin ? backToList : undefined}
             onEdit={() => setMode('edit')}
             onDelete={() => {
               if (window.confirm(`Delete ${selectedUser.name}? This can't be undone.`)) {
@@ -271,14 +294,14 @@ const Users: React.FC = () => {
 
         {mode === 'edit' || mode === 'create' ? (
           <div className="users-form-wrap">
-            <button type="button" className="ud-btn users-form-back" onClick={() => setMode(selectedUser && mode === 'edit' ? 'view' : 'list')}>
+            <button type="button" className="ud-btn users-form-back" onClick={() => (selectedUser && mode === 'edit' ? setMode('view') : backToList())}>
               ← {selectedUser && mode === 'edit' ? 'Back to profile' : 'All users'}
             </button>
             <CraeteUsersPage
               key={mode === 'create' ? 'create' : `edit-${selectedUserId}`}
               user={mode === 'edit' ? selectedUser : undefined}
               startEditing
-              onCancel={() => setMode(selectedUser && mode === 'edit' ? 'view' : 'list')}
+              onCancel={() => (selectedUser && mode === 'edit' ? setMode('view') : backToList())}
               onSave={async (user) => {
                 const ok = await handleSaveUser(user);
                 if (ok) setMode('view');

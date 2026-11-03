@@ -17,6 +17,8 @@ function OtpVerifyPage() {
   const [resendCooldown, setResendCooldown] = useState(30);
   const [resendMessage, setResendMessage] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
+  const [signedIn, setSignedIn] = useState<{ name: string; role: string; branchName?: string } | null>(null);
+  const [redirectIn, setRedirectIn] = useState(4);
   
   // 🌟 View state control
   const [status, setStatus] = useState<VerifyStatus>('input');
@@ -52,6 +54,17 @@ function OtpVerifyPage() {
       setResendMessage(err?.message || 'Could not send a new code.');
     }
   };
+
+  // After a successful login, go to the dashboard automatically
+  useEffect(() => {
+    if (status !== 'success') return undefined;
+    if (redirectIn <= 0) {
+      navigate('/dashboard', { replace: true });
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setRedirectIn((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [status, redirectIn, navigate]);
 
   const focusInput = (index: number) => {
     const target = inputRefs.current[index];
@@ -119,7 +132,8 @@ function OtpVerifyPage() {
     try {
       // The backend checks the code with Supabase and starts the session
       const sessionUser = await verifyLoginCode(code);
-      storeSessionUser(sessionUser);
+      const stored = storeSessionUser(sessionUser);
+      setSignedIn({ name: stored.name, role: stored.role, branchName: stored.branchName });
       setStatus('success');
     } catch (err) {
       const error = err as { status?: number; message?: string };
@@ -208,27 +222,34 @@ function OtpVerifyPage() {
 
           {/* VIEW 2: VERIFICATION SUCCESS STAGE */}
           {status === 'success' && (
-            <>
-              <div className="login-status-card success" role="status" aria-live="polite">
-                <div className="login-status-icon" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="9" />
-                    <path d="M8.2 12.3l2.4 2.4 5-5" />
-                  </svg>
-                </div>
-                <h1>Verification Successful</h1>
-                <p>Your OTP was accepted. You can continue to the application dashboard.</p>
+            <div className="otp-success">
+              <div className="otp-success-ring" aria-hidden="true">
+                <svg viewBox="0 0 52 52">
+                  <circle className="otp-success-circle" cx="26" cy="26" r="23" fill="none" />
+                  <path className="otp-success-check" fill="none" d="M15 27l7.5 7.5L38 19" />
+                </svg>
               </div>
+              <span className="otp-success-kicker">Verified</span>
+              <h1>Welcome back{signedIn?.name ? `, ${signedIn.name.split(' ')[0]}` : ''}!</h1>
+              <p>Your code was accepted and you're signed in.</p>
 
-              <div className="login-actions-column">
-                <button type="button" className="login-submit" onClick={() => navigate('/dashboard')}>
-                  Continue To Dashboard
-                </button>
+              {signedIn ? (
+                <div className="otp-success-pills">
+                  <span>{signedIn.role}</span>
+                  {signedIn.branchName ? <span>{signedIn.branchName}</span> : null}
+                </div>
+              ) : null}
+
+              <button type="button" className="login-submit otp-success-cta" onClick={() => navigate('/dashboard', { replace: true })}>
+                Continue to dashboard
+              </button>
+              <div className="otp-success-timer">
+                <span style={{ width: `${((4 - redirectIn) / 4) * 100}%` }} />
               </div>
-            </>
+              <p className="otp-success-note">Taking you there in {Math.max(0, redirectIn)}s…</p>
+            </div>
           )}
 
-          {/* VIEW 3: VERIFICATION FAILED STAGE */}
           {status === 'failed' && (
             <>
               <div className="login-status-card failed" role="alert">

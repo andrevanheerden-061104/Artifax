@@ -513,3 +513,124 @@ html[data-theme='synthwave'] .login-status-card {
   text-decoration: none;
   cursor: default;
 }
+
+/* ---------------------------------------------------------------
+   Verification success screen
+   --------------------------------------------------------------- */
+.otp-success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 12px 8px 4px;
+}
+
+.otp-success-ring {
+  width: 92px;
+  height: 92px;
+  margin-bottom: 6px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.22) 0%, rgba(34, 197, 94, 0.06) 70%);
+  box-shadow: 0 0 0 8px rgba(34, 197, 94, 0.08), 0 0 40px rgba(34, 197, 94, 0.35);
+  animation: otp-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+
+.otp-success-ring svg {
+  width: 64px;
+  height: 64px;
+}
+
+.otp-success-circle {
+  stroke: #22c55e;
+  stroke-width: 3;
+  stroke-dasharray: 145;
+  stroke-dashoffset: 145;
+  animation: otp-draw 0.6s 0.1s ease forwards;
+}
+
+.otp-success-check {
+  stroke: #22c55e;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: otp-draw 0.35s 0.55s ease forwards;
+}
+
+@keyframes otp-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes otp-pop {
+  from { transform: scale(0.6); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.otp-success-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #22c55e;
+}
+
+.otp-success h1 {
+  margin: 0;
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 1.7rem;
+  color: var(--text);
+}
+
+.otp-success > p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.otp-success-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0 4px;
+}
+
+.otp-success-pills span {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.12);
+}
+
+.otp-success-cta {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.otp-success-timer {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(127, 140, 160, 0.25);
+}
+
+.otp-success-timer span {
+  display: block;
+  height: 100%;
+  background: #22c55e;
+  transition: width 1s linear;
+}
+
+.otp-success-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
