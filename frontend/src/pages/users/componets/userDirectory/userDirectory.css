@@ -1,0 +1,347 @@
+/* Users page: directory grid + profile card */
+.ud-card,
+.up-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px;
+}
+
+.ud-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ud-search {
+  flex: 1;
+  min-width: 220px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--app);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.ud-search:focus {
+  border-color: var(--primary);
+}
+
+.ud-filters {
+  display: flex;
+  gap: 6px;
+}
+
+.ud-filter {
+  --tone: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ud-filter.is-active {
+  color: var(--text);
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 16%, var(--surface));
+}
+
+.ud-filter-count {
+  font-size: 10px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 22%, transparent);
+  color: var(--text);
+}
+
+.ud-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: 12px;
+  border: none;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ud-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.ud-empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.ud-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.ud-user {
+  --tone: #22b8cf;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--tone) 30%, var(--border));
+  background: linear-gradient(140deg, color-mix(in srgb, var(--tone) 13%, var(--surface)) 0%, var(--surface) 65%);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  min-width: 0;
+}
+
+.ud-user:hover {
+  border-color: var(--tone);
+  transform: translateY(-1px);
+}
+
+.ud-user-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ud-avatar {
+  --tone: #22b8cf;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-weight: 700;
+  color: var(--text);
+  background: color-mix(in srgb, var(--tone) 24%, var(--surface));
+  border: 2px solid color-mix(in srgb, var(--tone) 60%, transparent);
+}
+
+.ud-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ud-user-name {
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ud-user-email {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ud-user-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ud-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: var(--app);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ud-tag svg {
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.ud-tag--role {
+  border-color: color-mix(in srgb, var(--tone) 55%, transparent);
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
+}
+
+.ud-user-actions,
+.up-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.ud-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ud-btn:hover {
+  border-color: var(--tone, var(--primary));
+}
+
+.ud-btn--primary {
+  border-color: transparent;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.ud-btn--danger:hover:not(:disabled) {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.ud-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Profile */
+.up-card {
+  --tone: #22b8cf;
+  padding: 0;
+  overflow: hidden;
+  max-width: 760px;
+}
+
+.up-hero {
+  padding: 16px 22px 22px;
+  background: linear-gradient(125deg, color-mix(in srgb, var(--tone) 24%, var(--surface)) 0%, color-mix(in srgb, var(--tone) 5%, var(--surface)) 75%);
+  border-bottom: 1px solid color-mix(in srgb, var(--tone) 30%, var(--border));
+}
+
+.up-back {
+  padding: 4px 10px;
+  margin-bottom: 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.up-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.up-identity-text {
+  min-width: 0;
+}
+
+.up-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+
+.up-identity h2 {
+  margin: 2px 0;
+  font-size: 24px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.up-identity p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.up-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  margin: 0;
+  background: var(--border);
+}
+
+.up-details > div {
+  padding: 14px 22px;
+  background: var(--surface);
+}
+
+.up-details dt {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.up-details dd {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.up-status {
+  display: inline-flex;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid color-mix(in srgb, #22c55e 50%, transparent);
+  background: color-mix(in srgb, #22c55e 15%, transparent);
+}
+
+.up-actions {
+  padding: 16px 22px 20px;
+  max-width: 420px;
+}
+
+.users-form-wrap {
+  max-width: 760px;
+}
+
+.users-form-back {
+  margin-bottom: 10px;
+}

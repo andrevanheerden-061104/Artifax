@@ -2,10 +2,10 @@ import React, { FC, useMemo, useState, useEffect } from 'react';
 import './historyPanel.css';
 import SearchInput from '../../../../components/common/SearchInput';
 import FilterSelect from '../../../../components/common/FilterSelect';
-import unitIcon from '../../../../assets/images/uniitIcon.png';
-import unitIconWhite from '../../../../assets/images/uniitIconWhite.png';
 import viewIcon from '../../../../assets/images/View Icon.png';
-import { useApi, useThemeAwareIcon } from '../../../../hooks';
+import { useApi } from '../../../../hooks';
+import { useItemCatalog } from '../../../../hooks/useItemCatalog';
+import { CategoryBadge, CategoryIcon, CategoryTile, categoryStyle } from '../../../../components/common/categories';
 
 interface OrderHistoryDto {
   orderID: number;
@@ -16,6 +16,8 @@ interface OrderHistoryDto {
   createdDateTime?: string | null;
   status: string;
   employeeName?: string;
+  employeeID?: number;
+  branchID?: number;
 }
 
 interface IngredientDto {
@@ -61,14 +63,24 @@ const HistoryPanel: FC = () => {
   const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
   const [ingredientsByOrderId, setIngredientsByOrderId] = useState<Record<number, IngredientDto[]>>({});
   const [loadingIngredientsOrderId, setLoadingIngredientsOrderId] = useState<number | null>(null);
-  const unitIconSrc = useThemeAwareIcon(unitIcon, unitIconWhite);
+  const catalog = useItemCatalog();
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
     const loadHistory = async (): Promise<void> => {
       try {
-        const response = await api.get<OrderHistoryDto[]>('/Order');
-        const allOrders = response.data || [];
+        const [response, usersResponse] = await Promise.all([
+          api.get<OrderHistoryDto[]>('/Order'),
+          api.get<Array<{ employeeId?: number; employeeName?: string }>>('/User').catch(() => ({ data: [] as Array<{ employeeId?: number; employeeName?: string }> })),
+        ]);
+        const names: Record<number, string> = {};
+        (usersResponse.data || []).forEach((user) => {
+          if (user.employeeId != null && user.employeeName) names[user.employeeId] = user.employeeName;
+        });
+        const allOrders = (response.data || []).map((order) => ({
+          ...order,
+          employeeName: order.employeeName ?? (order.employeeID != null ? names[order.employeeID] : undefined),
+        }));
         const historyOrders = allOrders.filter((o) => {
           const s = (o.status || '').toLowerCase();
           return s === 'complete' || s === 'completed' || s === 'cancelled' || s === 'canceled';
@@ -254,13 +266,15 @@ const HistoryPanel: FC = () => {
 
               return (
                 <React.Fragment key={order.orderID}>
-                  <tr>
+                  <tr className={`history-row cat-row ${isExpanded ? 'is-open' : ''}`} style={categoryStyle(catalog[order.itemID]?.category)}>
                     <td>
                       <div className="history-item-cell">
-                        <img src={unitIconSrc} alt="item icon" className="table-item-icon" />
+                        <CategoryTile category={catalog[order.itemID]?.category} size="sm" />
                         <div>
                           <div className="item-name">{order.itemName}</div>
-                          <div className="item-subtitle">{`Order #${order.orderID}`}</div>
+                          <div className="item-subtitle">
+                            {`Order #${order.orderID}`} <CategoryBadge category={catalog[order.itemID]?.category} />
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -289,22 +303,51 @@ const HistoryPanel: FC = () => {
                   {isExpanded && (
                     <tr className="history-expanded-row">
                       <td colSpan={6}>
-                        <div className="history-ingredients-panel">
-                          <h4 className="ingredients-title">Ingredients Used</h4>
-                          {isLoading ? (
-                            <p className="loading-text">Loading ingredients...</p>
-                          ) : ingredients.length === 0 ? (
-                            <p className="empty-text">No ingredients recorded for this item.</p>
-                          ) : (
-                            <div className="ingredients-grid">
-                              {ingredients.map((ingredient, idx) => (
-                                <div key={idx} className="ingredient-item">
-                                  <span className="ingredient-name">{ingredient.itemName}</span>
-                                  <span className="ingredient-qty">×{ingredient.quantity}</span>
-                                </div>
-                              ))}
+                        <div className="inv-view history-view" style={categoryStyle(catalog[order.itemID]?.category)}>
+                          <div className="inv-view-hero">
+                            <div className="inv-view-glow" aria-hidden="true">
+                              <CategoryIcon category={catalog[order.itemID]?.category} size={100} />
                             </div>
-                          )}
+                            <CategoryTile category={catalog[order.itemID]?.category} size="md" />
+                            <div className="inv-view-hero-text">
+                              <div className="inv-view-kicker">
+                                <span>Order #{order.orderID}</span>
+                                <span className={`status-pill ${(order.status || 'unknown').toLowerCase()}`}>{order.status}</span>
+                              </div>
+                              <h3>{order.quantity} × {order.itemName}</h3>
+                              <div className="inv-view-facts">
+                                <span>{order.employeeName || 'Unknown employee'}</span>
+                                <span>{formatDate(order.completedDateTime || order.createdDateTime)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="inv-view-body">
+                            <span className="inv-view-label">Materials used</span>
+                            {isLoading ? (
+                              <p className="loading-text">Loading materials…</p>
+                            ) : ingredients.length === 0 ? (
+                              <p className="empty-text">No materials recorded for this item.</p>
+                            ) : (
+                              <div className="inv-view-materials">
+                                {ingredients.map((ingredient, idx) => {
+                                  const ingredientId = Number(ingredient.ingredientID ?? ingredient.itemID ?? 0);
+                                  const perUnit = Number(ingredient.quantity ?? 0);
+                                  return (
+                                    <div key={idx} className="inv-view-material">
+                                      <CategoryTile category={catalog[ingredientId]?.category} size="sm" />
+                                      <div className="inv-view-material-body">
+                                        <div className="inv-view-material-top">
+                                          <span className="inv-view-material-name">{ingredient.itemName}</span>
+                                          <span className="inv-view-material-count">{perUnit} per unit</span>
+                                        </div>
+                                      </div>
+                                      <span className="inv-view-ok">× {perUnit * (order.quantity || 1)}</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </td>
                     </tr>

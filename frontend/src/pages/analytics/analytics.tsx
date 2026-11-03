@@ -4,7 +4,8 @@ import AlertStrip from '../../components/layout/AlertStrip';
 import PageHeader from '../../components/layout/PageHeader';
 import GraphCard from './components/graph/graph';
 import MostCrafted from './components/mostCarfted/mostCarfted';
-import StatsGrid from '../crafting/components/stats/stats';
+import { AnalyticsKpis, MaterialForecast } from './components/insights/AnalyticsInsights';
+import { useAnalyticsData } from './components/insights/useAnalyticsData';
 import './analytics.css';
 import { getInventoryOverview, LowStockEntry } from '../../services/inventoryApi';
 import { getCurrentDateSAST } from '../../Date/dateUtils';
@@ -12,43 +13,28 @@ import { getCurrentDateSAST } from '../../Date/dateUtils';
 const AnalyticsPage: React.FC = () => {
   const currentDate = getCurrentDateSAST();
   const [lowStockAlerts, setLowStockAlerts] = useState<LowStockEntry[]>([]);
+  const data = useAnalyticsData();
 
   useEffect(() => {
-    const loadLowStockAlerts = async (): Promise<void> => {
-      try {
-        const overview = await getInventoryOverview();
-        setLowStockAlerts(overview.lowStock);
-      } catch (error) {
-        console.error('Failed to load analytics low stock alerts', error);
-      }
-    };
-
-    void loadLowStockAlerts();
+    getInventoryOverview()
+      .then((overview) => setLowStockAlerts(overview.lowStock))
+      .catch((error) => console.error('Failed to load analytics low stock alerts', error));
   }, []);
 
   return (
     <div className="page-content">
       <div className="space-y-4 sm:space-y-5">
-        <PageHeader
-          title="Analytics"
-          subtitle={`Crafting Analytics · ${currentDate}`}
-        />
+        <PageHeader title="Analytics" subtitle={`Production insights · ${currentDate}`} />
         <AlertStrip items={lowStockAlerts} />
 
-        <div className="crafting-page">
-          <div className="crafting-panel analytics-top-panel">
-            <StatsGrid />
-          </div>
+        <AnalyticsKpis data={data} />
 
-          <div className="active-jobs-layout">
-            <div className="active-jobs-main">
-              <GraphCard />
-            </div>
-            <div className="active-jobs-sidebar">
-              <MostCrafted />
-            </div>
-          </div>
+        <div className="analytics-grid">
+          <GraphCard />
+          <MostCrafted orders={data.orders} loading={data.loading} />
         </div>
+
+        <MaterialForecast data={data} />
       </div>
     </div>
   );

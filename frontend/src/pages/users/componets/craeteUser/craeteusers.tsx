@@ -17,9 +17,13 @@ interface CreateUsersPageProps {
   onSave: (user: Omit<User, 'id'> & { id: number | null; password?: string }) => Promise<void>;
   onDelete: (id: number) => void;
   onRequestEdit?: (id: number) => Promise<boolean>;
+  /** Open an existing user straight in edit mode (Users page "Edit" button). */
+  startEditing?: boolean;
+  /** Called when the user cancels editing/creating. */
+  onCancel?: () => void;
 }
 
-function CraeteUsersPage({ user, onSave, onDelete, onRequestEdit }: CreateUsersPageProps) {
+function CraeteUsersPage({ user, onSave, onDelete, onRequestEdit, startEditing = false, onCancel }: CreateUsersPageProps) {
   const api = useApi();
   const [fullName, setFullName] = useState('');
   const [branch, setBranch] = useState('');
@@ -83,7 +87,7 @@ function CraeteUsersPage({ user, onSave, onDelete, onRequestEdit }: CreateUsersP
       // user is re-provided (e.g. after a data refresh), preserve current
       // `isEditing` state so an in-progress edit isn't cancelled.
       if (lastUserIdRef.current !== user.id) {
-        setIsEditing(false);
+        setIsEditing(startEditing);
       }
       lastUserIdRef.current = user.id;
     } else {
@@ -180,7 +184,7 @@ function CraeteUsersPage({ user, onSave, onDelete, onRequestEdit }: CreateUsersP
               <path d="M4.5 20c1.8-3.3 4.5-5 7.5-5s5.7 1.7 7.5 5" />
             </svg>
           </div>
-          <h1>Create User</h1>
+          <h1>{user ? `Edit ${user.name || 'user'}` : 'Create User'}</h1>
         </div>
       </header>
 
@@ -329,6 +333,10 @@ function CraeteUsersPage({ user, onSave, onDelete, onRequestEdit }: CreateUsersP
                     className="createusers-secondary"
                     onClick={() => {
                       setIsEditing(false);
+                      if (onCancel) {
+                        onCancel();
+                        return;
+                      }
                       if (user) {
                         setFullName(user.name);
                         setBranch(user.branch);
@@ -375,9 +383,16 @@ function CraeteUsersPage({ user, onSave, onDelete, onRequestEdit }: CreateUsersP
                 </>
               )
             ) : (
-              <button type="submit" className="createusers-submit" disabled={!isFormValid}>
-                Create User
-              </button>
+              <>
+                <button type="submit" className="createusers-submit" disabled={!isFormValid}>
+                  Create User
+                </button>
+                {onCancel ? (
+                  <button type="button" className="createusers-secondary" onClick={onCancel}>
+                    Cancel
+                  </button>
+                ) : null}
+              </>
             )}
           </div>
         </form>

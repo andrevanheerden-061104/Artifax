@@ -230,3 +230,92 @@
   border-color: var(--border);
   box-shadow: 0 18px 30px rgba(15, 23, 42, 0.16);
 }
+/* ---------------------------------------------------------------
+   Themed active-craft cards (category colour arrives as --cat)
+   --------------------------------------------------------------- */
+.job-card--themed {
+  --cat: #9b87f5;
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--cat) 35%, var(--border));
+  background: linear-gradient(130deg, color-mix(in srgb, var(--cat) 16%, var(--surface)) 0%, var(--surface) 60%);
+  border-radius: 16px;
+  padding: 20px 22px 20px 26px;
+}
+
+.job-card--themed.is-paused {
+  background: linear-gradient(130deg, color-mix(in srgb, #f59e0b 12%, var(--surface)) 0%, var(--surface) 60%);
+  border-style: dashed;
+}
+
+.job-card-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--cat);
+}
+
+.job-card-glow {
+  position: absolute;
+  right: -14px;
+  top: -20px;
+  color: var(--cat);
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+.job-card--themed .card-header {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.job-card--themed .job-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat) 40%, transparent);
+}
+
+.job-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.job-card--themed .job-titles h3 {
+  margin-top: 4px;
+  font-size: 17px;
+}
+
+.job-card--themed .progress-bar-bg {
+  background: color-mix(in srgb, var(--cat) 14%, var(--border));
+}
+
+.job-card--themed .progress-bar-fill {
+  background: var(--cat);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--cat) 60%, transparent);
+}
+
+.job-card--themed.is-paused .progress-bar-fill {
+  background: #f59e0b;
+  box-shadow: none;
+}
+
+.job-card--themed .material-tag {
+  border: 1px solid color-mix(in srgb, var(--cat) 30%, var(--border));
+  background: color-mix(in srgb, var(--cat) 8%, var(--surface));
+  color: var(--text);
+}
+
+.job-card--themed .expedite-section,
+.job-card--themed .materials-section {
+  position: relative;
+}

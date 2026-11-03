@@ -1,101 +1,127 @@
-.most-crafted-card {
-  min-height: unset;
+/* Most crafted: ranked, category-coloured cards */
+.most-crafted {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  height: 100%;
+}
+
+.most-crafted-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.most-crafted-head h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.most-crafted-head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.most-crafted-head .artifax-select-shell {
+  width: 140px;
 }
 
 .most-crafted-list {
   display: grid;
   gap: 10px;
-  max-height: 600px;
+  max-height: 520px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
-.most-crafted-list::-webkit-scrollbar {
-  width: 8px;
+.most-crafted-empty {
+  color: var(--muted);
+  font-size: 13px;
 }
 
-.most-crafted-list::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.14);
-  border-radius: 999px;
-}
-
-.blueprint-card {
-  width: 100%;
-  background: var(--app);
-  border: 1px solid transparent;
-  border-radius: 14px;
-  padding: 16px 18px;
+.mc-card {
+  --cat: #9b87f5;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background 0.2s ease, opacity 0.25s ease;
-}
-
-.blueprint-card-main {
-  display: flex;
   gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--cat) 28%, var(--border));
+  background: linear-gradient(105deg, color-mix(in srgb, var(--cat) 13%, var(--surface)) 0%, var(--surface) 70%);
+}
+
+.mc-rank {
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.mc-rank--1 { color: #1f1300; background: #f5c542; border-color: #f5c542; }
+.mc-rank--2 { color: #0f172a; background: #cbd5e1; border-color: #cbd5e1; }
+.mc-rank--3 { color: #1f1300; background: #d39a6a; border-color: #d39a6a; }
+
+.mc-body {
+  flex: 1;
   min-width: 0;
 }
 
-.blueprint-card-icon {
-  width: 36px;
-  height: 36px;
-  background: var(--app);
-  border-radius: 12px;
-  padding: 8px;
-  object-fit: contain;
-  flex-shrink: 0;
+.mc-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
 }
 
-.blueprint-card h4 {
-  margin: 0;
-  font-size: 15px;
+.mc-name {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mc-count {
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 20px;
   color: var(--text);
 }
 
-.blueprint-card p {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: var(--muted);
+.mc-bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cat) 12%, var(--border));
+  overflow: hidden;
 }
 
-.blueprint-card-meta {
+.mc-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--cat);
+}
+
+.mc-meta {
   display: flex;
-  gap: 14px;
+  justify-content: space-between;
   align-items: center;
-  min-width: 84px;
-}
-
-.meta-block {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
-}
-
-.meta-label {
+  margin-top: 6px;
   font-size: 11px;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.most-crafted-card .blueprint-header {
-  gap: 12px;
-}
-
-.most-crafted-card .blueprint-header h3 {
-  font-size: 1.15rem;
-}
-
-.most-crafted-card .blueprint-filter select {
-  min-width: 160px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
 }

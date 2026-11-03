@@ -124,7 +124,7 @@ function WarehouseSwitcher() {
         onClick={() => setOpen((value) => !value)}
       >
         {workspace.isAllView ? <GlobeIcon /> : <WarehouseIcon />}
-        <span className="flex items-center gap-2 whitespace-nowrap leading-none">
+        <span className="flex items-baseline gap-2 whitespace-nowrap leading-none">
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
             {workspace.isAllView ? 'Admin view' : 'Warehouse'}
           </span>

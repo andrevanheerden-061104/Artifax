@@ -1,9 +1,9 @@
 import React, { FC, useEffect, useState } from 'react';
 import './craftingQueue.css';
-import unitIcon from '../../../../assets/images/uniitIcon.png';
-import unitIconWhite from '../../../../assets/images/uniitIconWhite.png';
-import { useApi, useThemeAwareIcon } from '../../../../hooks';
+import { useApi } from '../../../../hooks';
 import { useCurrentUser } from '../../../../utils/currentUser';
+import { useItemCatalog } from '../../../../hooks/useItemCatalog';
+import { CategoryTile, categoryStyle } from '../../../../components/common/categories';
 import { calculateProgress, formatTimeLeft, normalizeQueueStatus, QueueJobStatus } from '../../../../services/craftingUtils';
 
 const itemsPerPage = 3;
@@ -58,7 +58,7 @@ const CraftingQueue: FC = () => {
   const [queuedJobs, setQueuedJobs] = useState<CraftingJob[]>([]);
   const [branchMap, setBranchMap] = useState<Record<number, string>>({});
 
-  const unitIconSrc = useThemeAwareIcon(unitIcon, unitIconWhite);
+  const catalog = useItemCatalog();
 
   useEffect(() => {
     const REFRESH_INTERVAL_MS = 60_000;
@@ -197,10 +197,10 @@ const CraftingQueue: FC = () => {
           <h4 className="queue-section-title">Active Crafts</h4>
           {activeJobs.length === 0 && <p className="empty-state">No active crafts right now.</p>}
           {activeJobs.map((item) => (
-            <div key={item.orderID} className="queue-item">
+            <div key={item.orderID} className={`queue-item queue-item--themed ${item.status === 'Paused' ? 'is-paused' : ''}`} style={categoryStyle(catalog[item.itemID]?.category)}>
               <div className="queue-item-header">
                 <div className="item-info">
-                  <img src={unitIconSrc} alt={`${item.name} icon`} className="queue-item-icon" />
+                  <CategoryTile category={catalog[item.itemID]?.category} size="sm" />
                   <div>
                     <h4>{item.name} x{item.qty} · {item.branchName}</h4>
                     <p>{item.status} · {item.employeeName}</p>
@@ -209,6 +209,9 @@ const CraftingQueue: FC = () => {
                 <span className={`queue-badge ${item.status.toLowerCase().replace(' ', '-')}`}>
                   {item.status}
                 </span>
+              </div>
+              <div className="queue-progress" aria-hidden="true">
+                <span style={{ width: `${item.progress}%` }} />
               </div>
               <div className="waiting-status">
                 <span>{item.progress}% complete</span>
@@ -222,10 +225,10 @@ const CraftingQueue: FC = () => {
           <h4 className="queue-section-title">Up Next</h4>
           {pageItems.length === 0 && <p className="empty-state">No queued items ready yet.</p>}
           {pageItems.map((item) => (
-            <div key={item.orderID} className="queue-item">
+            <div key={item.orderID} className={`queue-item queue-item--themed ${item.status === 'Paused' ? 'is-paused' : ''}`} style={categoryStyle(catalog[item.itemID]?.category)}>
               <div className="queue-item-header">
                 <div className="item-info">
-                  <img src={unitIconSrc} alt={`${item.name} icon`} className="queue-item-icon" />
+                  <CategoryTile category={catalog[item.itemID]?.category} size="sm" />
                   <div>
                     <h4>{item.name} x{item.qty} · {item.branchName}</h4>
                     <p>Queued · Created {new Intl.DateTimeFormat('en-ZA', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(item.createdDateTime))}</p>

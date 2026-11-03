@@ -15,6 +15,8 @@ import { Line } from 'react-chartjs-2';
 import './graph.css';
 import FilterSelect from '../../../../components/common/FilterSelect';
 import { useApi } from '../../../../hooks';
+import { useItemCatalog } from '../../../../hooks/useItemCatalog';
+import { CategoryTile, categoryStyle, getCategory } from '../../../../components/common/categories';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler, Legend);
 
@@ -142,6 +144,7 @@ const GraphCard: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const searchWrapperRef = React.useRef<HTMLDivElement | null>(null);
+  const catalog = useItemCatalog();
 
   useEffect(() => {
     const closeSearchOptions = (event: PointerEvent) => {
@@ -262,6 +265,9 @@ const GraphCard: React.FC = () => {
     return buckets;
   }, [orders, range, selectedItem]);
 
+  const selectedCategory = selectedItem ? catalog[selectedItem.itemID]?.category : undefined;
+  const lineColor = getCategory(selectedCategory).color;
+
   const data: ChartData<'line'> = useMemo(() => ({
     labels: graphSeries.map((bucket) => bucket.label),
     datasets: [
@@ -269,12 +275,12 @@ const GraphCard: React.FC = () => {
         label: 'Crafted quantity',
         data: graphSeries.map((bucket) => bucket.quantity),
         fill: true,
-        backgroundColor: themeTokens.fill,
-        borderColor: themeTokens.primary,
+        backgroundColor: `${lineColor}33`,
+        borderColor: lineColor,
         borderWidth: 2.5,
         pointRadius: 4,
         pointBackgroundColor: themeTokens.surface,
-        pointBorderColor: themeTokens.primary,
+        pointBorderColor: lineColor,
         tension: 0.35,
         yAxisID: 'y',
       },
@@ -292,7 +298,7 @@ const GraphCard: React.FC = () => {
         yAxisID: 'y',
       },
     ],
-  }), [graphSeries, themeTokens.fill, themeTokens.primary, themeTokens.surface]);
+  }), [graphSeries, lineColor, themeTokens.surface]);
 
   const options: ChartOptions<'line'> = useMemo(() => ({
     responsive: true,
@@ -322,11 +328,14 @@ const GraphCard: React.FC = () => {
   }), [themeTokens.border, themeTokens.grid, themeTokens.muted, themeTokens.text, themeTokens.tooltipBg]);
 
   return (
-    <section className="graph-card">
+    <section className="graph-card graph-card--themed" style={categoryStyle(selectedCategory)}>
       <div className="graph-card-header">
-        <div>
-          <h3>Completed craft analytics</h3>
-          <p>Compare completed item volume and revenue for the selected blueprint.</p>
+        <div className="graph-title-row">
+          <CategoryTile category={selectedCategory} size="md" />
+          <div>
+            <h3>{selectedItem ? selectedItem.itemName : 'Craft output'}</h3>
+            <p>Units crafted and their value over time — pick any blueprint.</p>
+          </div>
         </div>
         <div className="graph-card-bottom-controls">
           <div className="graph-filter-group graph-filter-search" ref={searchWrapperRef}>

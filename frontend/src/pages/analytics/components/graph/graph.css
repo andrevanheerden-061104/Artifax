@@ -126,3 +126,22 @@
   width: 100% !important;
   height: 100% !important;
 }
+
+/* Themed by the selected blueprint's category */
+.graph-card--themed {
+  --cat: #9b87f5;
+  border-radius: 16px;
+  border-color: color-mix(in srgb, var(--cat) 30%, var(--border));
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cat) 9%, var(--surface)) 0%, var(--surface) 45%);
+}
+
+.graph-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.graph-card--themed .graph-card-header p {
+  font-size: 0.85rem;
+  margin-top: 2px;
+}

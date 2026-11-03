@@ -15,7 +15,7 @@ import InventoryItemIngredientModal from './components/InventoryItemIngredientMo
 import RestockModal from './components/RestockModal';
 import { createInventoryItem, getBlueprintProductIds, getItemCategoryOptions, getItems, getInventoryOverview, getItemMaterialDetails, restockBranch, updateInventoryItem, InventoryCreatedItem, InventoryItem, InventoryMaterialDetails, InventoryOverview, InventoryItemCreate, InventoryItemUpdate, RestockLine } from '../../services/inventoryApi';
 import { getCurrentDateSAST } from '../../Date/dateUtils';
-import { CategoryBadge } from '../../components/common/categories';
+import { CategoryBadge, CategoryTile, categoryStyle } from '../../components/common/categories';
 import { useWorkspace } from '../../utils/workspace';
 import { showError, showSuccess } from '../../utils/toast';
 import editIcon from '../../assets/images/Edit Icon.png';
@@ -335,7 +335,7 @@ function InventoryPage() {
             <table className="w-full min-w-[920px] text-left text-sm">
               <thead className="text-xs uppercase tracking-wide text-muted">
                 <tr className="border-b border-border">
-                  <th className="pb-2 font-medium">Material / SKU</th>
+                  <th className="pb-2 pl-3 font-medium">Material / SKU</th>
                   <th className="pb-2 font-medium">Category</th>
                   <th className="pb-2 pr-8 text-right font-medium">Qty</th>
                   <th className="pb-2 pl-4 font-medium">Prod.</th>
@@ -353,10 +353,15 @@ function InventoryPage() {
 
                   return (
                     <React.Fragment key={uniqueRowKey}>
-                      <tr className={`border-b border-border/70 ${isExpanded ? 'bg-bg/30' : ''}`}>
-                        <td className="py-2.5 pr-3">
-                          <p className="font-semibold text-text">{item.name}</p>
-                          <p className="text-xs text-muted">{item.sku}</p>
+                      <tr className={`cat-row border-b border-border/70 ${isExpanded ? 'is-open' : ''}`} style={categoryStyle(item.category)}>
+                        <td className="py-2.5 pl-3 pr-3">
+                          <div className="flex items-center gap-3">
+                            <CategoryTile category={item.category} size="sm" />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-text">{item.name}</p>
+                              <p className="text-xs text-muted">{item.sku}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="py-2.5 pr-3"><CategoryBadge category={item.category} /></td>
                         <td className="py-2.5 pr-8 text-right font-semibold text-text">{item.quantity}</td>

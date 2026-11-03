@@ -1,10 +1,10 @@
 import React, { FC, useEffect, useState } from 'react';
 import './craftingItems.css';
-import unitIcon from '../../../../assets/images/uniitIcon.png';
-import unitIconWhite from '../../../../assets/images/uniitIconWhite.png';
-import { useApi, useThemeAwareIcon } from '../../../../hooks';
+import { useApi } from '../../../../hooks';
 import { useCurrentUser } from '../../../../utils/currentUser';
 import { useWorkspace } from '../../../../utils/workspace';
+import { useItemCatalog } from '../../../../hooks/useItemCatalog';
+import { CategoryBadge, CategoryIcon, categoryStyle } from '../../../../components/common/categories';
 import { getApiErrorMessage } from '../../../../hooks/useApi';
 import { showError } from '../../../../utils/toast';
 import { calculateProgress, formatTimeLeft, normalizeQueueStatus, QueueJobStatus } from '../../../../services/craftingUtils';
@@ -67,6 +67,7 @@ const CraftingItems: FC = () => {
   const api = useApi();
   const currentUser = useCurrentUser();
   const workspace = useWorkspace();
+  const catalog = useItemCatalog();
   const [tilts, setTilts] = useState<TiltsState>({});
   const [activeJobs, setActiveJobs] = useState<CraftingJob[]>([]);
   const [branchMap, setBranchMap] = useState<Record<number, string>>({});
@@ -205,7 +206,6 @@ const CraftingItems: FC = () => {
     };
 }, [api, currentUser]);
 
-  const unitIconSrc = useThemeAwareIcon(unitIcon, unitIconWhite);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>, id: string): void => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -276,19 +276,27 @@ const CraftingItems: FC = () => {
       {activeJobs.map((job) => (
         <div
           key={job.orderID}
-          className="job-card"
+          className={`job-card job-card--themed ${job.status === 'Paused' ? 'is-paused' : ''}`}
           onMouseMove={(e) => handleMouseMove(e, String(job.orderID))}
           onMouseLeave={() => handleMouseLeave(String(job.orderID))}
-          style={{ transform: tilts[String(job.orderID)] || '' }}
+          style={categoryStyle(catalog[job.itemID]?.category, { transform: tilts[String(job.orderID)] || '' })}
         >
+          <span className="job-card-accent" aria-hidden="true" />
+          <div className="job-card-glow" aria-hidden="true">
+            <CategoryIcon category={catalog[job.itemID]?.category} size={120} />
+          </div>
           <div className="card-header">
             <div className="job-info-main">
               <div className="job-icon-box">
-                <img src={unitIconSrc} alt={`${job.name} icon`} className="job-icon" />
+                <CategoryIcon category={catalog[job.itemID]?.category} size={24} />
               </div>
               <div className="job-titles">
-                <h3>{job.name}</h3>
-                <p>Employee: {job.employeeName} · Qty: {job.qty} · {job.branchName}</p>
+                <div className="job-kicker">
+                  <span>#{job.orderID}</span>
+                  <CategoryBadge category={catalog[job.itemID]?.category} />
+                </div>
+                <h3>{job.qty} × {job.name}</h3>
+                <p>{job.employeeName} · {job.branchName}</p>
               </div>
             </div>
             <span className={`status-badge ${job.status.toLowerCase().replace(' ', '-')}`}>

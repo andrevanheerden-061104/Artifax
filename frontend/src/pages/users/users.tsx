@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import PageHeader from '../../components/layout/PageHeader';
 import CraeteUsersPage from './componets/craeteUser/craeteusers';
-import UserList from './componets/userList/UserList';
+import UserDirectory from './componets/userDirectory/UserDirectory';
+import UserProfile from './componets/userDirectory/UserProfile';
 import { getCurrentDateSAST } from '../../Date/dateUtils';
 import { useApi } from '../../hooks';
+import { getApiErrorMessage } from '../../hooks/useApi';
 import { getCurrentUser, setCurrentUser } from '../../utils/currentUser';
 import { showError, showSuccess } from '../../utils/toast';
 
@@ -24,6 +26,8 @@ const Users: React.FC = () => {
   const [branchMap, setBranchMap] = useState<Record<number, string>>({});
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  // list -> view (profile) / edit / create
+  const [mode, setMode] = useState<'list' | 'view' | 'edit' | 'create'>('list');
   // ensure we only try fetching users once per page load
   const usersFetchedRef = useRef(false);
 
@@ -31,14 +35,6 @@ const Users: React.FC = () => {
     () => users.find((user) => user.id === selectedUserId) ?? undefined,
     [users, selectedUserId]
   );
-
-  const handleSelectUser = (id: number) => {
-    setSelectedUserId(id);
-  };
-
-  const handleCreateNewUser = () => {
-    setSelectedUserId(null);
-  };
 
   const fetchUsers = async (): Promise<User[]> => {
     setLoading(true);
@@ -88,7 +84,7 @@ const Users: React.FC = () => {
     }
   };
 
-  const handleSaveUser = async (user: Omit<User, 'id'> & { id: number | null; password?: string }) => {
+  const handleSaveUser = async (user: Omit<User, 'id'> & { id: number | null; password?: string }): Promise<boolean> => {
     try {
       if (user.id === null) {
         // Create new employee
@@ -112,7 +108,7 @@ const Users: React.FC = () => {
           if (matched) setSelectedUserId(matched.id);
         }
         showSuccess('User created successfully.');
-        return;
+        return true;
       }
 
       // Update existing employee
@@ -137,7 +133,7 @@ const Users: React.FC = () => {
         }
 
         showSuccess('User updated successfully.');
-        return;
+        return true;
       }
 
       // General details update (name/email/password)
@@ -170,9 +166,11 @@ const Users: React.FC = () => {
       }
 
       showSuccess('User updated successfully.');
+      return true;
     } catch (err) {
       console.error('Save user failed', err);
-      showError('Unable to save user. Please try again.');
+      showError(getApiErrorMessage(err, 'Unable to save user. Please try again.'));
+      return false;
     }
   };
 
@@ -181,6 +179,7 @@ const Users: React.FC = () => {
       await api.delete(`/User/employee?id=${encodeURIComponent(String(id))}`);
       await fetchUsers();
       setSelectedUserId(null);
+      setMode('list');
       showSuccess('User deleted successfully.');
       // do not clear or change current session when deleting a user
     } catch (err) {
@@ -230,30 +229,65 @@ const Users: React.FC = () => {
     <div className="page-content">
       <div className="space-y-4 sm:space-y-5">
         <PageHeader 
-          title="User Management" 
-          subtitle={`Manage users and add new accounts · ${currentDate}`} 
+ 
+          title="User Management"
+          subtitle={`${users.length} accounts · ${currentDate}`}
         />
 
-        <div className="users-page grid gap-4 xl:grid-cols-[2fr,1fr]">
-          <div className="users-panel">
+        {mode === 'list' ? (
+          <UserDirectory
+            users={users}
+            loading={loading}
+            branchMap={branchMap}
+            onView={(id) => {
+              setSelectedUserId(id);
+              setMode('view');
+            }}
+            onEdit={(id) => {
+              setSelectedUserId(id);
+              setMode('edit');
+            }}
+            onAdd={() => {
+              setSelectedUserId(null);
+              setMode('create');
+            }}
+          />
+        ) : null}
+
+        {mode === 'view' && selectedUser ? (
+          <UserProfile
+            user={selectedUser}
+            branchName={branchMap[Number(selectedUser.branch)] ?? `Warehouse ${selectedUser.branch}`}
+            isCurrentUser={getCurrentUser()?.email?.toLowerCase() === selectedUser.email.toLowerCase()}
+            onBack={() => setMode('list')}
+            onEdit={() => setMode('edit')}
+            onDelete={() => {
+              if (window.confirm(`Delete ${selectedUser.name}? This can't be undone.`)) {
+                void handleDeleteUser(selectedUser.id);
+              }
+            }}
+          />
+        ) : null}
+
+        {mode === 'edit' || mode === 'create' ? (
+          <div className="users-form-wrap">
+            <button type="button" className="ud-btn users-form-back" onClick={() => setMode(selectedUser && mode === 'edit' ? 'view' : 'list')}>
+              ← {selectedUser && mode === 'edit' ? 'Back to profile' : 'All users'}
+            </button>
             <CraeteUsersPage
-              user={selectedUser}
-              onSave={handleSaveUser}
+              key={mode === 'create' ? 'create' : `edit-${selectedUserId}`}
+              user={mode === 'edit' ? selectedUser : undefined}
+              startEditing
+              onCancel={() => setMode(selectedUser && mode === 'edit' ? 'view' : 'list')}
+              onSave={async (user) => {
+                const ok = await handleSaveUser(user);
+                if (ok) setMode('view');
+              }}
               onDelete={handleDeleteUser}
               onRequestEdit={handleRequestEdit}
             />
           </div>
-          <div className="users-panel">
-            <UserList
-              users={users}
-              selectedUserId={selectedUserId}
-              loading={loading}
-              onSelectUser={handleSelectUser}
-              onCreateNewUser={handleCreateNewUser}
-              branchMap={branchMap}
-            />
-          </div>
-        </div>
+        ) : null}
       </div>
     </div>
   );

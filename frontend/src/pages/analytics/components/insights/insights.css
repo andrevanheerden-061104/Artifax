@@ -1,0 +1,219 @@
+/* Analytics: KPI tiles, material forecast, category mix */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1100px) {
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.kpi-card {
+  --tone: #22b8cf;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--tone) 35%, var(--border));
+  background: linear-gradient(125deg, color-mix(in srgb, var(--tone) 16%, var(--surface)) 0%, var(--surface) 70%);
+}
+
+.kpi-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tone) 40%, transparent);
+}
+
+.kpi-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.kpi-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.kpi-value {
+  display: block;
+  margin-top: 2px;
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+.kpi-caption {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.insight-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.insight-header h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.insight-header p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.insight-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.insight-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+}
+
+.mix {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mix-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--border);
+}
+
+.mix-bar span {
+  display: block;
+  height: 100%;
+}
+
+.mix-bar span + span {
+  border-left: 2px solid var(--surface);
+}
+
+.mix-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.mix-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mix-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.forecast-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 1000px) {
+  .forecast-list { grid-template-columns: 1fr; }
+}
+
+.forecast-row {
+  --cat: #9b87f5;
+  --state: #22c55e;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--cat) 28%, var(--border));
+  background: linear-gradient(110deg, color-mix(in srgb, var(--cat) 10%, var(--surface)) 0%, var(--surface) 70%);
+}
+
+.forecast-row--warn { --state: #f59e0b; }
+.forecast-row--bad { --state: #ef4444; }
+.forecast-row--idle { --state: var(--muted); }
+
+.forecast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.forecast-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.forecast-name {
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.forecast-days {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--state);
+  white-space: nowrap;
+}
+
+.forecast-bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.forecast-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--state);
+}
+
+.forecast-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}

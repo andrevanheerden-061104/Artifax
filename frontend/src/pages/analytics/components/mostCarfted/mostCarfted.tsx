@@ -1,117 +1,95 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import './mostCarfted.css';
-import unitIcon from '../../../../assets/images/uniitIcon.png';
-import unitIconWhite from '../../../../assets/images/uniitIconWhite.png';
 import FilterSelect from '../../../../components/common/FilterSelect';
-import { useApi, useThemeAwareIcon } from '../../../../hooks';
+import { CategoryBadge, CategoryTile, categoryStyle } from '../../../../components/common/categories';
+import { useItemCatalog } from '../../../../hooks/useItemCatalog';
+import { AnalyticsOrder, isComplete } from '../insights/useAnalyticsData';
 
 type SortOrder = 'high' | 'low';
 
-type SortOption = {
-  value: SortOrder;
-  label: string;
-};
-
 type CraftedBlueprint = {
+  itemId: number;
   name: string;
   crafted: number;
 };
 
-const sortOptions: SortOption[] = [
-  { value: 'high', label: 'High to low' },
-  { value: 'low', label: 'Low to high' },
+const sortOptions = [
+  { value: 'high', label: 'Most first' },
+  { value: 'low', label: 'Least first' },
 ];
 
-function normalizeString(value: unknown): string {
-  return String(value ?? '').trim().toLowerCase();
-}
+type MostCraftedProps = {
+  orders?: AnalyticsOrder[];
+  loading?: boolean;
+};
 
-const MostCrafted: React.FC = () => {
-  const api = useApi();
+/** Ranked list of completed crafts, styled like the blueprint cards. */
+const MostCrafted: React.FC<MostCraftedProps> = ({ orders = [], loading = false }) => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('high');
-  const [blueprints, setBlueprints] = useState<CraftedBlueprint[]>([]);
-  const unitIconSrc = useThemeAwareIcon(unitIcon, unitIconWhite);
+  const catalog = useItemCatalog();
 
-  useEffect(() => {
-    const loadMostCrafted = async () => {
-      try {
-        const response = await api.get<any[]>('/Order');
-        const orders = response.data ?? [];
-
-        const totals = orders.reduce((map: Map<string, number>, order) => {
-          const status = normalizeString(order.status);
-          if (status !== 'complete' && status !== 'completed') {
-            return map;
-          }
-
-          const itemName = String(order.itemName ?? order.ItemName ?? '').trim();
-          const itemQuantity = Number(order.quantity ?? order.Quantity ?? 0);
-
-          if (!itemName || itemQuantity <= 0) {
-            return map;
-          }
-
-          map.set(itemName, (map.get(itemName) ?? 0) + itemQuantity);
-          return map;
-        }, new Map<string, number>());
-
-        setBlueprints(
-          Array.from(totals.entries()).map(([name, crafted]) => ({ name, crafted })),
-        );
-      } catch (error) {
-        console.error('Unable to load most crafted blueprints', error);
-        setBlueprints([]);
-      }
-    };
-
-    loadMostCrafted();
-  }, [api]);
-
-  const sortedBlueprints = useMemo(() => {
-    return [...blueprints].sort((a, b) => {
-      if (sortOrder === 'low') return a.crafted - b.crafted;
-      return b.crafted - a.crafted;
+  const blueprints = useMemo(() => {
+    const totals = new Map<number, CraftedBlueprint>();
+    orders.forEach((order) => {
+      if (!isComplete(order.status) || !(order.quantity > 0)) return;
+      const existing = totals.get(order.itemID) ?? { itemId: order.itemID, name: order.itemName, crafted: 0 };
+      existing.crafted += order.quantity;
+      totals.set(order.itemID, existing);
     });
-  }, [blueprints, sortOrder]);
+    return Array.from(totals.values());
+  }, [orders]);
+
+  const sorted = useMemo(
+    () => [...blueprints].sort((a, b) => (sortOrder === 'low' ? a.crafted - b.crafted : b.crafted - a.crafted)),
+    [blueprints, sortOrder],
+  );
+
+  const max = Math.max(1, ...blueprints.map((blueprint) => blueprint.crafted));
+  const ranked = [...blueprints].sort((a, b) => b.crafted - a.crafted).map((blueprint) => blueprint.itemId);
 
   return (
-    <section className="blueprint-panel most-crafted-card">
-      <div className="blueprint-header">
+    <section className="most-crafted">
+      <div className="most-crafted-head">
         <div>
-          <h3>Most Crafted Blueprints</h3>
+          <h3>Most crafted</h3>
+          <p>All-time completed units</p>
         </div>
-        <div className="blueprint-filter">
-          <label htmlFor="mostCraftedSort">Sort</label>
-          <FilterSelect
-            value={sortOrder}
-            onChange={(nextValue) => setSortOrder(nextValue as SortOrder)}
-            ariaLabel="Most crafted sort order"
-            options={sortOptions}
-          />
-        </div>
+        <FilterSelect
+          value={sortOrder}
+          onChange={(nextValue: string) => setSortOrder(nextValue as SortOrder)}
+          ariaLabel="Most crafted sort order"
+          options={sortOptions}
+        />
       </div>
 
-      <div className="blueprint-list most-crafted-list">
-        {sortedBlueprints.length === 0 ? (
-          <p className="most-crafted-empty">No completed craft data available yet.</p>
-        ) : (
-          sortedBlueprints.map((blueprint) => (
-            <button key={blueprint.name} type="button" className="blueprint-card">
-              <div className="blueprint-card-main">
-                <img src={unitIconSrc} alt="Blueprint icon" className="blueprint-card-icon" />
-                <div>
-                  <h4>{blueprint.name}</h4>
+      <div className="most-crafted-list">
+        {loading ? <p className="most-crafted-empty">Loading…</p> : null}
+        {!loading && sorted.length === 0 ? <p className="most-crafted-empty">No completed crafts yet.</p> : null}
+
+        {sorted.map((blueprint) => {
+          const item = catalog[blueprint.itemId];
+          const rank = ranked.indexOf(blueprint.itemId) + 1;
+          const value = item?.price != null ? blueprint.crafted * item.price : null;
+          return (
+            <div key={blueprint.itemId} className="mc-card" style={categoryStyle(item?.category)}>
+              <span className={`mc-rank ${rank <= 3 ? `mc-rank--${rank}` : ''}`}>{rank}</span>
+              <CategoryTile category={item?.category} size="md" />
+              <div className="mc-body">
+                <div className="mc-top">
+                  <span className="mc-name">{blueprint.name}</span>
+                  <strong className="mc-count">{blueprint.crafted}</strong>
+                </div>
+                <div className="mc-bar" aria-hidden="true">
+                  <span style={{ width: `${(blueprint.crafted / max) * 100}%` }} />
+                </div>
+                <div className="mc-meta">
+                  <CategoryBadge category={item?.category} />
+                  {value != null ? <span>R {Math.round(value).toLocaleString('en-ZA')} output</span> : null}
                 </div>
               </div>
-              <div className="blueprint-card-meta">
-                <div className="meta-block">
-                  <span className="meta-label">Crafted</span>
-                  <strong>{blueprint.crafted}</strong>
-                </div>
-              </div>
-            </button>
-          ))
-        )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
