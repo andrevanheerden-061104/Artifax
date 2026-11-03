@@ -65,12 +65,16 @@ function LoginPage() {
 
       navigate('/login/verify', { state: { email: loginResponse.email } });
     } catch (error) {
-      let message = 'Login failed. Please check your credentials.';
+      let message = 'Login failed. Please try again.';
       const errAny = error as any;
       if (errAny?.status === 401) {
         message = 'Incorrect email or password.';
       } else if (errAny?.status === 503) {
-        message = errAny.message || 'We could not send your login code. Please try again shortly.';
+        message = errAny.message || 'The service is temporarily unavailable. Please try again shortly.';
+      } else if (errAny?.status >= 500) {
+        message = 'Something went wrong on our side. Please try again.';
+      } else if (errAny?.status === undefined) {
+        message = "Can't reach the server. Is the backend running?";
       } else if (error instanceof Error && error.message) {
         message = error.message;
       }

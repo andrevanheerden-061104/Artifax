@@ -2,6 +2,7 @@ using Artifax.Data;
 using Artifax.Helpers;
 using Artifax.Services;
 using DotNetEnv;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 
 // Load environment variables from a local .env file when running on your own computer.
@@ -88,6 +89,29 @@ builder.Services.AddSession(option =>
 });
 
 var app = builder.Build();
+
+// Never send stack traces to the browser: log the details, return a short message.
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+{
+    var error = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+    app.Logger.LogError(error, "Unhandled error on {Path}", context.Request.Path);
+
+    var isDatabaseProblem = false;
+    for (var current = error; current != null; current = current.InnerException)
+    {
+        if (current is Npgsql.NpgsqlException || current is System.Net.Sockets.SocketException)
+        {
+            isDatabaseProblem = true;
+            break;
+        }
+    }
+
+    context.Response.StatusCode = isDatabaseProblem ? StatusCodes.Status503ServiceUnavailable : StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "text/plain";
+    await context.Response.WriteAsync(isDatabaseProblem
+        ? "We can't reach the database right now. Please try again in a moment."
+        : "Something went wrong on our side. Please try again.");
+}));
 
 if (app.Environment.IsDevelopment())
 {

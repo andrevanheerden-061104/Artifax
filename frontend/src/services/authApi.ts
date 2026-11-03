@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios';
-import { api } from '../hooks/useApi';
+import { api, friendlyServerMessage } from '../hooks/useApi';
 import { CurrentUser, setCurrentUser } from '../utils/currentUser';
 import { resetWorkspaceSelection } from '../utils/workspace';
 
@@ -49,13 +49,7 @@ async function withAxios<T>(request: Promise<AxiosResponse<T>>): Promise<T> {
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;
-      const responseData = error.response?.data;
-      const message =
-        typeof responseData === 'string'
-          ? responseData
-          : (responseData as { message?: string } | undefined)?.message || `Request failed: ${status ?? 'unknown'}`;
-
-      const err = new Error(message);
+      const err = new Error(friendlyServerMessage(status, error.response?.data, `Request failed (${status ?? 'network'})`));
       (err as { status?: number }).status = status;
       throw err;
     }
