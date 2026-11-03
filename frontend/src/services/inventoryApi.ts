@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { api as apiClient } from '../hooks/useApi';
+import { CATEGORIES, normalizeCategory as normalizeCategoryId } from '../components/common/categories';
 
 function toFetchStyleError(error: unknown): Error {
   if (axios.isAxiosError(error)) {
@@ -127,24 +128,10 @@ export type InventoryStat = {
 export type InventoryTab = {
   id: string;
   label: string;
+  count?: number;
+  categoryId?: string;
 };
 
-type InventoryCategoryDefinition = {
-  label: string;
-  aliases: string[];
-};
-
-const INVENTORY_CATEGORY_DEFINITIONS: InventoryCategoryDefinition[] = [
-  { label: 'Furniture', aliases: ['furniture'] },
-  { label: 'Stationery', aliases: ['stationery'] },
-  { label: 'Metals', aliases: ['metal', 'metals'] },
-  { label: 'Fasteners', aliases: ['fastener', 'fasteners'] },
-  { label: 'Plastic', aliases: ['plastic', 'plastics', 'polymer', 'polymers'] },
-  { label: 'Electronics', aliases: ['electronics', 'electronic'] },
-  { label: 'Textile', aliases: ['textile', 'textiles', 'fabric', 'fabrics'] },
-  { label: 'Glass', aliases: ['glass'] },
-  { label: 'Others', aliases: ['other', 'others', 'misc', 'miscellaneous', 'uncategorized'] },
-];
 
 export type LowStockEntry = { name: string; quantity: number; location?: string };
 
@@ -180,14 +167,6 @@ export type InventoryMaterialDetails = {
   ingredients: InventoryMaterialIngredient[];
 };
 
-function slugifyCategory(category: string): string {
-  return category.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'misc';
-}
-
-function normalizeCategoryKey(category: string | null | undefined): string {
-  return normalizeCategory(category).trim().toLowerCase();
-}
-
 function normalizeCategory(category: string | null | undefined): string {
   return category?.trim() || 'Misc';
 }
@@ -212,13 +191,7 @@ function normalizeMaterialBranchRows(rows: InventoryRowDto[], ingredientId: numb
 }
 
 export function buildInventoryOverview(items: InventoryItem[]): InventoryOverview {
-  const categoryCounts = new Map<string, number>();
   const lowStockItems = items.filter((item) => item.status === 'LOW');
-
-  items.forEach((item) => {
-    const categoryKey = normalizeCategoryKey(item.category);
-    categoryCounts.set(categoryKey, (categoryCounts.get(categoryKey) ?? 0) + 1);
-  });
 
   const previewRows: DashboardPreviewRow[] = items.slice(0, 8).map((item) => ({
     id: item.id,
@@ -228,27 +201,22 @@ export function buildInventoryOverview(items: InventoryItem[]): InventoryOvervie
     status: item.status,
   }));
 
+  // One filter per category that has items, using the shared category list (icons + colours)
+  const tabCounts = new Map<string, number>();
+  items.forEach((item) => {
+    const id = normalizeCategoryId(item.category);
+    tabCounts.set(id, (tabCounts.get(id) ?? 0) + 1);
+  });
+
   const tabs: InventoryTab[] = [
-    { id: 'all', label: `All (${items.length})` },
-    ...INVENTORY_CATEGORY_DEFINITIONS.map((definition) => {
-      const count = definition.aliases.reduce((sum, alias) => sum + (categoryCounts.get(alias) ?? 0), 0);
-      return {
-        id: slugifyCategory(definition.label),
-        label: `${definition.label} (${count})`,
-      };
-    }),
+    { id: 'all', label: 'All', count: items.length },
+    ...CATEGORIES.filter((definition) => tabCounts.has(definition.id)).map((definition) => ({
+      id: definition.id,
+      label: definition.label,
+      count: tabCounts.get(definition.id) ?? 0,
+      categoryId: definition.id,
+    })),
   ];
-
-  const knownCategoryKeys = new Set(INVENTORY_CATEGORY_DEFINITIONS.flatMap((definition) => definition.aliases));
-  const extraTabs = Array.from(categoryCounts.entries())
-    .filter(([category]) => !knownCategoryKeys.has(category))
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([category, count]) => ({
-      id: slugifyCategory(category),
-      label: `${category} (${count})`,
-    }));
-
-  tabs.push(...extraTabs);
 
   const alerts = lowStockItems.map((item) => `${item.name} (${item.quantity} remaining)`);
   const showLocation = new Set(items.map((item) => item.branchId)).size > 1;
@@ -427,7 +395,7 @@ export async function getInventoryItems(): Promise<InventoryItem[]> {
       branchId,
       status,
       productionTime: r.inventoryItemProductionTime ?? 0,
-      tab: slugifyCategory(category),
+      tab: normalizeCategoryId(category),
     };
   });
 

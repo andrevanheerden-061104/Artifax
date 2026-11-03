@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { getModalRoot } from '../../../components/common/modalRoot';
 import {
   createInventoryItemIngredient,
   getItemMaterialDetails,
@@ -117,9 +119,9 @@ function InventoryItemIngredientModal({ item, open, onClose }: InventoryItemIngr
     }
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
       style={{ backgroundColor: 'var(--overlay-backdrop)' }}
       role="presentation"
       onMouseDown={onClose}
@@ -226,7 +228,8 @@ function InventoryItemIngredientModal({ item, open, onClose }: InventoryItemIngr
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    getModalRoot(),
   );
 }
 

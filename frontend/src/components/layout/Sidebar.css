@@ -218,6 +218,9 @@ html[data-theme='synthwave'] .logo-placeholder {
 .sidebar-profile-button {
   justify-content: center;
   gap: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
 }
 
 .sidebar-profile-button:hover,
@@ -250,6 +253,18 @@ html[data-theme='synthwave'] .logo-placeholder {
   align-items: flex-start;
   gap: 2px;
   flex-grow: 1;
+  min-width: 0;
+  max-width: 140px;
+  overflow: hidden;
+}
+
+/* Long names end in "…" instead of spilling out of the sidebar */
+.user-name,
+.user-role {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .user-name {

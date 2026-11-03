@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { getModalRoot } from '../../../components/common/modalRoot';
 import FilterSelect from '../../../components/common/FilterSelect';
 import { InventoryItem, InventoryItemUpdate } from '../../../services/inventoryApi';
 
@@ -63,9 +65,9 @@ function InventoryItemEditModal({ item, open, saving, categoryOptions, onClose, 
     await onSave(Number(item.id), formValues);
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
       style={{ backgroundColor: 'var(--overlay-backdrop)' }}
       role="presentation"
       onMouseDown={onClose}
@@ -178,7 +180,8 @@ function InventoryItemEditModal({ item, open, saving, categoryOptions, onClose, 
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    getModalRoot(),
   );
 }
 

@@ -84,7 +84,6 @@ function Topbar() {
   return (
     <header className="sticky top-0 z-10 border-b border-border topbar-glass backdrop-blur">
       <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-        <WarehouseSwitcher />
         <nav aria-label="Breadcrumb" className="hidden min-w-0 flex-1 md:block">
           <ol className="flex items-center gap-2 text-sm font-medium text-muted sm:text-base">
             {breadcrumbItems.map((item, index) => {
@@ -124,7 +123,7 @@ function Topbar() {
           </ol>
         </nav>
 
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex min-w-0 items-center gap-2">
           <label className="relative inline-flex h-[38px] w-[38px] shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-[8px] border border-border bg-surface text-muted transition hover:border-primary hover:text-text">
             <input
               type="checkbox"
@@ -165,6 +164,7 @@ function Topbar() {
               </svg>
             </span>
           </label>
+          <WarehouseSwitcher />
           <div className="shrink-0 whitespace-nowrap rounded-[8px] border border-border bg-surface px-3 py-2 text-sm font-medium nav-pill text-text sm:px-3.5 sm:text-[0.95rem]">
             {currentUser?.name ?? 'Signed in'}
           </div>

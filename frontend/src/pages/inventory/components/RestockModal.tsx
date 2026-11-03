@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { getModalRoot } from '../../../components/common/modalRoot';
 import { CategoryBadge, CategoryTile, CATEGORIES, normalizeCategory } from '../../../components/common/categories';
 import { InventoryItem, RestockLine } from '../../../services/inventoryApi';
 
@@ -89,9 +91,9 @@ function RestockModal({ open, warehouseName, items, blueprintItemIds, saving, on
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
       style={{ backgroundColor: 'var(--overlay-backdrop)' }}
       role="presentation"
       onMouseDown={onClose}
@@ -234,7 +236,8 @@ function RestockModal({ open, warehouseName, items, blueprintItemIds, saving, on
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    getModalRoot(),
   );
 }
 

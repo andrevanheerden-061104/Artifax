@@ -676,3 +676,109 @@ html[data-theme='synthwave'] .restock-after {
 html[data-theme='synthwave'] .item-kind-option svg {
   color: #9cc8f0;
 }
+
+/* ---------------------------------------------------------------
+   Toasts — styled like the app's cards (tinted gradient + icon tile).
+   Selectors use two classes so they win over react-toastify's own CSS,
+   which loads after this file.
+   green = success · red = error · amber = warning · blue = info
+   --------------------------------------------------------------- */
+.Toastify .Toastify__toast-container {
+  --toastify-toast-width: min(560px, calc(100% - 32px));
+  width: min(560px, calc(100% - 32px));
+  padding: 0;
+}
+
+.Toastify .Toastify__toast-container--bottom-center {
+  bottom: 22px;
+}
+
+.Toastify__toast-container .Toastify__toast {
+  --toast: #38bdf8;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  margin-bottom: 10px;
+  padding: 10px 16px 12px 10px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--toast) 45%, var(--border));
+  background: linear-gradient(120deg, color-mix(in srgb, var(--toast) 22%, var(--surface)) 0%, var(--surface) 72%);
+  color: var(--text);
+  font-family: 'Sora', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  box-shadow: 0 22px 48px rgba(2, 6, 23, 0.4), 0 0 0 4px color-mix(in srgb, var(--toast) 12%, transparent);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.Toastify__toast-container .Toastify__toast--success { --toast: #22c55e; }
+.Toastify__toast-container .Toastify__toast--error { --toast: #ef4444; }
+.Toastify__toast-container .Toastify__toast--warning { --toast: #f59e0b; }
+.Toastify__toast-container .Toastify__toast--info { --toast: #38bdf8; }
+
+/* Icon tile, same look as the category tiles */
+.Toastify__toast-container .Toastify__toast-icon {
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: var(--toast);
+  background: color-mix(in srgb, var(--toast) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--toast) 40%, transparent);
+}
+
+.Toastify__toast-container .Toastify__toast-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+}
+
+.Toastify__toast-container .Toastify__toast-body {
+  padding: 0;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  line-height: 1.35;
+  font-weight: 500;
+}
+
+.ax-toast {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ax-toast-title {
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--toast);
+}
+
+.ax-toast-message {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.Toastify__toast-container .Toastify__progress-bar--wrp {
+  height: 3px;
+}
+
+.Toastify__toast-container .Toastify__progress-bar {
+  background: var(--toast);
+  opacity: 0.8;
+}
+
+.Toastify__toast-container .Toastify__progress-bar--bg {
+  background: transparent;
+}

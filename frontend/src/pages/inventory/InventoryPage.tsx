@@ -337,8 +337,8 @@ function InventoryPage() {
                 <tr className="border-b border-border">
                   <th className="pb-2 font-medium">Material / SKU</th>
                   <th className="pb-2 font-medium">Category</th>
-                  <th className="pb-2 text-right font-medium">Qty</th>
-                  <th className="pb-2 font-medium">Prod.</th>
+                  <th className="pb-2 pr-8 text-right font-medium">Qty</th>
+                  <th className="pb-2 pl-4 font-medium">Prod.</th>
                   <th className="pb-2 font-medium">Location</th>
                   <th className="pb-2 font-medium">Status</th>
                   <th className="pb-2 font-medium">Edit</th>
@@ -359,8 +359,8 @@ function InventoryPage() {
                           <p className="text-xs text-muted">{item.sku}</p>
                         </td>
                         <td className="py-2.5 pr-3"><CategoryBadge category={item.category} /></td>
-                        <td className="py-2.5 pr-3 text-right font-semibold text-text">{item.quantity}</td>
-                        <td className="py-2.5 pr-3">
+                        <td className="py-2.5 pr-8 text-right font-semibold text-text">{item.quantity}</td>
+                        <td className="py-2.5 pl-4 pr-3">
                           <p className="text-xs text-muted">{item.productionTime} min</p>
                         </td>
                         <td className="inventory-location-cell py-2.5 pr-3 text-muted">{item.location}</td>

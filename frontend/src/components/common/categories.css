@@ -159,3 +159,318 @@
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ---------------------------------------------------------------
+   Inventory "View" panel (InventoryMaterialsPopover)
+   --------------------------------------------------------------- */
+.inv-view {
+  --cat: #9b87f5;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--cat) 35%, var(--border));
+  background: var(--surface);
+  overflow: hidden;
+  box-shadow: 0 18px 44px rgba(2, 6, 23, 0.22);
+}
+
+.inv-view--loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.inv-view-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--cat) 26%, var(--surface)) 0%, color-mix(in srgb, var(--cat) 5%, var(--surface)) 70%);
+  border-bottom: 1px solid color-mix(in srgb, var(--cat) 30%, var(--border));
+}
+
+.inv-view-glow {
+  position: absolute;
+  right: -10px;
+  top: -18px;
+  color: var(--cat);
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.inv-view-hero-text {
+  position: relative;
+  min-width: 0;
+}
+
+.inv-view-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.inv-view-hero h3 {
+  margin: 4px 0 6px;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.inv-view-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inv-view-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.inv-view-facts svg {
+  width: 14px;
+  height: 14px;
+  color: var(--cat);
+}
+
+.inv-view-facts .is-ok { border-color: color-mix(in srgb, #22c55e 55%, transparent); }
+.inv-view-facts .is-bad { border-color: color-mix(in srgb, #ef4444 55%, transparent); }
+
+.inv-view-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 18px;
+  max-height: 26rem;
+  overflow-y: auto;
+}
+
+.inv-view-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.inv-view-branches {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 6px;
+}
+
+.inv-view-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inv-view-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--app);
+  font-size: 12px;
+  color: var(--text);
+}
+
+.inv-view-chip svg {
+  width: 14px;
+  height: 14px;
+  color: var(--muted);
+}
+
+.inv-view-chip strong {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--cat) 22%, transparent);
+}
+
+.inv-view-materials {
+  display: grid;
+  gap: 8px;
+}
+
+.inv-view-material {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--app);
+}
+
+.inv-view-material.is-short {
+  border-color: color-mix(in srgb, #ef4444 45%, var(--border));
+}
+
+.inv-view-material-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.inv-view-material-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inv-view-material-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inv-view-material-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.inv-view-bar {
+  margin-top: 6px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.inv-view-bar span {
+  display: block;
+  height: 100%;
+  background: #22c55e;
+}
+
+.inv-view-material.is-short .inv-view-bar span {
+  background: #ef4444;
+}
+
+.inv-view-material-branches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.inv-view-material-branches strong {
+  color: var(--text);
+}
+
+.inv-view-short,
+.inv-view-ok {
+  align-self: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.inv-view-short {
+  background: color-mix(in srgb, #ef4444 18%, transparent);
+  border: 1px solid color-mix(in srgb, #ef4444 50%, transparent);
+}
+
+.inv-view-ok {
+  background: color-mix(in srgb, #22c55e 16%, transparent);
+  border: 1px solid color-mix(in srgb, #22c55e 45%, transparent);
+}
+
+.inv-view-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.inv-view-empty svg {
+  color: var(--cat);
+  flex-shrink: 0;
+}
+
+.inv-view-empty p {
+  margin: 0;
+}
+
+.inv-view-empty strong {
+  color: var(--text);
+}
+
+/* ---------------------------------------------------------------
+   Category filter chips (Inventory tabs)
+   --------------------------------------------------------------- */
+.cat-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cat-filter-chip {
+  --cat: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.cat-filter-chip svg {
+  color: var(--cat);
+}
+
+.cat-filter-chip:hover {
+  color: var(--text);
+  border-color: var(--cat);
+}
+
+.cat-filter-chip.is-active {
+  color: var(--text);
+  border-color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 18%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat) 15%, transparent);
+}
+
+.cat-filter-count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  background: color-mix(in srgb, var(--cat) 22%, transparent);
+  color: var(--text);
+}

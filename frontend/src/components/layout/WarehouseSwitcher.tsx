@@ -97,7 +97,7 @@ function WarehouseSwitcher() {
   if (!workspace.isAdmin) {
     return (
       <div
-        className="warehouse-pill inline-flex items-center gap-2 rounded-[10px] border border-border bg-surface px-3 py-2 text-sm font-medium text-text"
+        className="warehouse-pill inline-flex h-[38px] shrink-0 items-center gap-2 rounded-[8px] border border-border bg-surface px-3 text-sm font-medium text-text"
         title="Your account is linked to this warehouse"
       >
         <WarehouseIcon />
@@ -116,7 +116,7 @@ function WarehouseSwitcher() {
     <div ref={rootRef} className="relative">
       <button
         type="button"
-        className={`warehouse-pill inline-flex items-center gap-2 rounded-[10px] border px-3 py-2 text-sm font-medium transition ${
+        className={`warehouse-pill inline-flex h-[38px] shrink-0 items-center gap-2 rounded-[8px] border px-3 text-sm font-medium transition ${
           workspace.isAllView ? 'ws-all-active border-primary text-text' : 'border-border bg-surface text-text hover:border-primary'
         }`}
         aria-haspopup="listbox"
@@ -124,11 +124,11 @@ function WarehouseSwitcher() {
         onClick={() => setOpen((value) => !value)}
       >
         {workspace.isAllView ? <GlobeIcon /> : <WarehouseIcon />}
-        <span className="flex flex-col items-start leading-tight">
+        <span className="flex items-center gap-2 whitespace-nowrap leading-none">
           <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted">
             {workspace.isAllView ? 'Admin view' : 'Warehouse'}
           </span>
-          <span className="nav-pill max-w-[220px] truncate">{activeName}</span>
+          <span className="nav-pill max-w-[200px] truncate">{activeName}</span>
         </span>
         <svg className={`h-4 w-4 text-muted transition ${open ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="m6 9 6 6 6-6" />
@@ -137,7 +137,7 @@ function WarehouseSwitcher() {
 
       {open ? (
         <div
-          className="absolute left-0 z-40 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-surface p-1.5 shadow-soft"
+          className="absolute right-0 z-40 mt-2 w-72 overflow-hidden rounded-xl border border-border bg-surface p-1.5 shadow-soft"
           role="listbox"
           aria-label="Choose warehouse"
         >

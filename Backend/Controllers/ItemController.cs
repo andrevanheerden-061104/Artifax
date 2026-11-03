@@ -277,10 +277,7 @@ namespace Artifax.Controllers
                                        ItemPrice = item.Price,
                                        Quantity = ingredient.IngredientQuantity
                                    }).ToListAsync();
-            if (!blueprint.Any())
-            {
-                return NotFound();
-            }
+            // Raw materials simply have no ingredients: return an empty list instead of a 404
             return blueprint;
         }
 

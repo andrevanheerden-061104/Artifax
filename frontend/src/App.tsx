@@ -43,7 +43,7 @@ function App() {
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
 
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+      <ToastContainer position="bottom-center" autoClose={3500} hideProgressBar={false} newestOnTop limit={3} closeButton={false} />
       </DeviceFrame>
     </HashRouter>
   );

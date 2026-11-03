@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { getModalRoot } from '../../../components/common/modalRoot';
 import { CategoryPicker } from '../../../components/common/categories';
 import { InventoryCreatedItem, InventoryItemCreate } from '../../../services/inventoryApi';
 
@@ -77,9 +79,9 @@ function InventoryItemCreateModal({ open, saving, warehouseName, onClose, onCrea
   const inputClass =
     'w-full rounded-xl border border-border bg-app px-3 py-2.5 text-sm text-text outline-none transition focus:border-primary';
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-[200] flex items-center justify-center px-4"
       style={{ backgroundColor: 'var(--overlay-backdrop)' }}
       role="presentation"
       onMouseDown={onClose}
@@ -160,7 +162,7 @@ function InventoryItemCreateModal({ open, saving, warehouseName, onClose, onCrea
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4">
               {kind === 'product' ? (
                 <label className="space-y-2 text-sm text-text">
                   <span className="text-xs font-semibold uppercase tracking-wide text-muted">Production time (min per unit)</span>
@@ -227,7 +229,8 @@ function InventoryItemCreateModal({ open, saving, warehouseName, onClose, onCrea
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    getModalRoot(),
   );
 }
 

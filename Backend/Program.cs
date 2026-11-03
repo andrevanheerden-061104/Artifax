@@ -99,7 +99,9 @@ app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
     var isDatabaseProblem = false;
     for (var current = error; current != null; current = current.InnerException)
     {
-        if (current is Npgsql.NpgsqlException || current is System.Net.Sockets.SocketException)
+        // PostgresException = the database answered with an error (e.g. a missing column) -> a bug, not an outage
+        if (current is Npgsql.PostgresException) break;
+        if (current is Npgsql.NpgsqlException || current is System.Net.Sockets.SocketException || current is TimeoutException)
         {
             isDatabaseProblem = true;
             break;
@@ -128,6 +130,22 @@ app.UseCors("AllowReactApp");
 app.UseSession();
 
 app.UseAuthorization();
+
+// Small, safe schema top-ups so an older database still works with this version of the code.
+// (Same as supabase/update_2026-11-03.sql; IF NOT EXISTS makes it a no-op when already applied.)
+try
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<ArtifaxContext>();
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE ""Orders"" ADD COLUMN IF NOT EXISTS ""SourceBranchID"" integer;
+        UPDATE ""Orders"" SET ""SourceBranchID"" = ""BranchID"" WHERE ""SourceBranchID"" IS NULL;
+    ");
+}
+catch (Exception exception)
+{
+    app.Logger.LogWarning(exception, "Could not check the database schema at startup. Is the database reachable?");
+}
 
 // Simple health check for Render ("Health Check Path" = /health)
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
