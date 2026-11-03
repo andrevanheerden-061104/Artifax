@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Artifax.Models;
 using Artifax.Data;
 using Artifax.DTOs;
+using Artifax.Helpers;
 
 namespace Artifax.Controllers
 {
@@ -15,6 +16,10 @@ namespace Artifax.Controllers
         {
             _context = context;
         }
+
+        BranchScope Scope => BranchScope.From(HttpContext);
+
+        static ObjectResult Forbidden(string message) => new ObjectResult(message) { StatusCode = StatusCodes.Status403Forbidden };
 
         #region ItemEndpoints
 
@@ -147,7 +152,14 @@ namespace Artifax.Controllers
         [HttpGet("item/allInventoryItems")]
         public async Task<ActionResult<IEnumerable<InventoryItemReadDto>>> GetAllInventoryItems()
         {
-            var inventoryItems = await _context.BranchItemCapacities
+            var scope = Scope;
+            var capacities = _context.BranchItemCapacities.AsQueryable();
+            if (scope.BranchId is int branchId)
+            {
+                capacities = capacities.Where(c => c.BranchID == branchId);
+            }
+
+            var inventoryItems = await capacities
                 .Join(_context.Items, c => c.ItemID, i => i.ItemID, (c, i) => new { Capacity = c, Item = i })
                 .Join(_context.Branches, x => x.Capacity.BranchID, b => b.BranchID, (x, b) => new { x.Capacity, x.Item, Branch = b })
                 .Select(x => new InventoryItemReadDto(x.Item, x.Branch, x.Capacity))
@@ -334,11 +346,18 @@ namespace Artifax.Controllers
         [HttpGet("Branch")]
         public async Task<ActionResult<IEnumerable<BranchItemCapacityReadDto>>> GetAllBranchItems()
         {
-            return await _context.BranchItemCapacities.Select(bic => BranchItemCapacityReadDto.ToDto(bic)).ToListAsync();
+            var scope = Scope;
+            var capacities = _context.BranchItemCapacities.AsQueryable();
+            if (scope.BranchId is int branchId)
+            {
+                capacities = capacities.Where(c => c.BranchID == branchId);
+            }
+            return await capacities.Select(bic => BranchItemCapacityReadDto.ToDto(bic)).ToListAsync();
         }
         [HttpGet("Branch/{branchID}")]
         public async Task<ActionResult<IEnumerable<BranchItemCapacityReadDto>>> GetItemsByBranch(int branchID)
         {
+            if (!Scope.CanAccess(branchID)) return Forbidden("You can only view stock in your own warehouse.");
             return await _context.BranchItemCapacities.Where(bic => bic.BranchID == branchID).Select(bic => BranchItemCapacityReadDto.ToDto(bic)).ToListAsync();
         }
         [HttpGet("Branch/GetItemCapacity/{id}")]
@@ -354,6 +373,7 @@ namespace Artifax.Controllers
         [HttpPost("Branch")]
         public async Task<ActionResult<BranchItemCapacity>> CreateBranchItems(BranchItemCapacityWriteDto incoming)
         {
+            if (!Scope.CanAccess(incoming.BranchID)) return Forbidden("You can only change stock in your own warehouse.");
             BranchItemCapacity _branchItemCapacity = new BranchItemCapacity()
             {
                 BranchID = incoming.BranchID,
@@ -378,6 +398,10 @@ namespace Artifax.Controllers
             {
                 return NotFound();
             }
+            if (!Scope.CanAccess(_branchItemCapacity.BranchID) || !Scope.CanAccess(incoming.BranchID))
+            {
+                return Forbidden("You can only change stock in your own warehouse.");
+            }
             _branchItemCapacity.BranchID = incoming.BranchID;
             _branchItemCapacity.ItemID = incoming.ItemID;
             _branchItemCapacity.ItemQuantity = incoming.ItemQuantity;
@@ -392,6 +416,10 @@ namespace Artifax.Controllers
             {
                 return NotFound();
             }
+            if (!Scope.CanAccess(_branchItemCapacity.BranchID))
+            {
+                return Forbidden("You can only change stock in your own warehouse.");
+            }
             _branchItemCapacity.ItemQuantity = incoming.ItemQuantity;
             await _context.SaveChangesAsync();
             return NoContent();
@@ -405,25 +433,75 @@ namespace Artifax.Controllers
             {
                 return NotFound();
             }
+            if (!Scope.CanAccess(_branchItemCapacity.BranchID))
+            {
+                return Forbidden("You can only change stock in your own warehouse.");
+            }
 
             _context.BranchItemCapacities.Remove(_branchItemCapacity);
             await _context.SaveChangesAsync();
             return NoContent();
         }
+        // Sets the exact stock level of an item in a warehouse (creates the stock row if missing).
         [HttpPut("Branch/{branchId}/Item/{itemId}")]
         public async Task<IActionResult> UpdateBICQuantity(int branchId, int itemId, [FromQuery] int quantity)
         {
-            
+            if (!Scope.CanAccess(branchId)) return Forbidden("You can only change stock in your own warehouse.");
+            if (quantity < 0) return BadRequest("Quantity cannot be negative.");
+
             var branchItemCapacity = await _context.BranchItemCapacities
                 .FirstOrDefaultAsync(bic => bic.BranchID == branchId && bic.ItemID == itemId);
             if (branchItemCapacity == null)
             {
-                return NotFound($"No capacity record found for Branch ID {branchId} and Item ID {itemId}.");
+                if (await _context.Items.FindAsync(itemId) == null || await _context.Branches.FindAsync(branchId) == null)
+                {
+                    return NotFound($"No item {itemId} or warehouse {branchId}.");
+                }
+                _context.BranchItemCapacities.Add(new BranchItemCapacity { BranchID = branchId, ItemID = itemId, ItemQuantity = quantity });
             }
-            branchItemCapacity.ItemQuantity = quantity;
+            else
+            {
+                branchItemCapacity.ItemQuantity = quantity;
+            }
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // Adds stock for one or more materials in a warehouse in one go (the "Restock materials" screen).
+        // Body: [{ "itemID": 1, "quantity": 50 }, ...]
+        [HttpPost("Branch/{branchId}/restock")]
+        public async Task<ActionResult<IEnumerable<BranchItemCapacityReadDto>>> RestockBranch(int branchId, [FromBody] List<RestockLineDto> lines)
+        {
+            if (!Scope.CanAccess(branchId)) return Forbidden("You can only restock your own warehouse.");
+            if (await _context.Branches.FindAsync(branchId) == null) return NotFound($"Warehouse {branchId} does not exist.");
+            if (lines == null || lines.Count == 0) return BadRequest("Add at least one material.");
+            if (lines.Any(line => line.Quantity <= 0)) return BadRequest("Restock amounts must be more than 0.");
+            if (lines.Any(line => line.Quantity > 100000)) return BadRequest("Restock amount is too large.");
+
+            var itemIds = lines.Select(line => line.ItemID).Distinct().ToList();
+            var knownItemIds = await _context.Items.Where(i => itemIds.Contains(i.ItemID)).Select(i => i.ItemID).ToListAsync();
+            var unknown = itemIds.Except(knownItemIds).ToList();
+            if (unknown.Count > 0) return BadRequest($"Unknown item(s): {string.Join(", ", unknown)}.");
+
+            var rows = await _context.BranchItemCapacities
+                .Where(bic => bic.BranchID == branchId && itemIds.Contains(bic.ItemID))
+                .ToListAsync();
+
+            foreach (var line in lines)
+            {
+                var row = rows.FirstOrDefault(r => r.ItemID == line.ItemID);
+                if (row == null)
+                {
+                    row = new BranchItemCapacity { BranchID = branchId, ItemID = line.ItemID, ItemQuantity = 0 };
+                    _context.BranchItemCapacities.Add(row);
+                    rows.Add(row);
+                }
+                row.ItemQuantity += line.Quantity;
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(rows.Select(BranchItemCapacityReadDto.ToDto).ToList());
         }
 
 

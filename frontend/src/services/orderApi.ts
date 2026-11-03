@@ -117,52 +117,63 @@ export async function getUsers(): Promise<any[]> {
   return fetchJson<any[]>('User');
 }
 
+type OrderReadDto = {
+  orderID: number;
+  itemID: number;
+  itemName: string;
+  quantity: number;
+  createdDateTime: string;
+  totalTime?: number;
+  timeElapsed?: number;
+  status: string;
+  branchID?: number;
+  sourceBranchID?: number;
+  employeeID?: number;
+  orderExpedite?: boolean;
+};
+
+/**
+ * Active + queued crafting jobs for the dashboard.
+ * The backend already limits orders to the warehouse being viewed.
+ */
 export async function getCraftingQueue(): Promise<{ activeItems: QueueJob[]; queuedItems: QueueJob[] }> {
-  const [orders, users] = await Promise.all([getOrders(), getUsers()]);
+  const [orders, users, branches] = await Promise.all([
+    fetchJson<OrderReadDto[]>('Order'),
+    getUsers().catch(() => [] as any[]),
+    fetchJson<Array<Record<string, unknown>>>('Branch').catch(() => [] as Array<Record<string, unknown>>),
+  ]);
 
   const employeeMap = (users ?? []).reduce<Record<number, string>>((map, user: any) => {
-    if (user.employeeId != null) {
-      map[user.employeeId] = user.employeeName;
-    }
-
+    if (user.employeeId != null) map[user.employeeId] = user.employeeName;
     return map;
   }, {});
 
-  const sortedOrders = (orders ?? []).slice()
-    .sort((left, right) => new Date(left.orderDateTime).getTime() - new Date(right.orderDateTime).getTime())
-    .filter((order) => {
-      const status = normalizeQueueStatus(order.status);
-      return status === 'Queued' || status === 'Active' || status === 'Paused';
+  const branchMap = (branches ?? []).reduce<Record<number, string>>((map, branch) => {
+    const id = Number(branch.branchID ?? branch.BranchID ?? 0);
+    if (id) map[id] = String(branch.branchName ?? branch.BranchName ?? `Warehouse ${id}`);
+    return map;
+  }, {});
+
+  const jobs: QueueJob[] = (orders ?? [])
+    .map((order) => ({ order, status: normalizeQueueStatus(order.status) }))
+    .filter((entry): entry is { order: OrderReadDto; status: QueueJobStatus } => entry.status != null)
+    .sort((left, right) => new Date(left.order.createdDateTime).getTime() - new Date(right.order.createdDateTime).getTime())
+    .map(({ order, status }) => {
+      const expedited = order.orderExpedite === true;
+      return {
+        orderID: order.orderID,
+        id: `#${order.orderID}`,
+        name: order.itemName || `Order ${order.orderID}`,
+        qty: order.quantity ?? 1,
+        status,
+        progress: calculateProgress(order.totalTime, order.timeElapsed, expedited),
+        timeLeft: formatTimeLeft(order.totalTime, order.timeElapsed, expedited),
+        materials: [],
+        employeeName: employeeMap[order.employeeID ?? 0] ?? 'Unknown employee',
+        createdDateTime: order.createdDateTime,
+        location: branchMap[order.branchID ?? 0] ?? `Warehouse ${order.branchID ?? '?'}`,
+      };
     });
-
-  const normalizedOrders = sortedOrders.map((order) => {
-    const rawStatus = normalizeQueueStatus(order.status) ?? 'Queued';
-    return {
-      ...order,
-      status: rawStatus,
-    } as OrderDto & { status: QueueJobStatus };
-  });
-
-  const jobs = normalizedOrders.map((order) => {
-    const totalTime = (order as any).totalTime;
-    const timeElapsed = (order as any).timeElapsed;
-    const items = order.orderItems ?? [];
-    const materials = [items[0]?.itemName ?? `Item ${order.orderID}`];
-
-    return {
-      orderID: order.orderID,
-      id: `order-${order.orderID}`,
-      name: items[0]?.itemName ?? `Order ${order.orderID}`,
-      qty: items.reduce((sum, item) => sum + (item.quantity ?? 0), 0) || items.length || 1,
-      status: order.status,
-      progress: calculateProgress(totalTime, timeElapsed),
-      timeLeft: formatTimeLeft(totalTime, timeElapsed),
-      materials,
-      employeeName: employeeMap[(order as any).employeeID ?? 0] ?? 'Unknown Employee',
-      createdDateTime: order.orderDateTime,
-      location: `Order ${order.orderID}`,
-    } satisfies QueueJob;
-  });
 
   return {
     activeItems: jobs.filter((job) => job.status === 'Active' || job.status === 'Paused'),

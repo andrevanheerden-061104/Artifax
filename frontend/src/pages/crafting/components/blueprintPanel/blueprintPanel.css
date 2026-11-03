@@ -198,3 +198,182 @@
 html[data-theme='synthwave'] .blueprint-error {
   color: #ff6b9d;
 }
+
+/* ---------------------------------------------------------------
+   Category-coloured blueprint cards (overrides the base card above)
+   --------------------------------------------------------------- */
+.blueprint-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.blueprint-count {
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.blueprint-search {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--app);
+  color: var(--text);
+  font-size: 13px;
+  outline: none;
+}
+
+.blueprint-search:focus {
+  border-color: var(--primary);
+}
+
+.blueprint-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.blueprint-chip {
+  --cat: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.blueprint-chip svg {
+  color: var(--cat);
+}
+
+.blueprint-chip:hover {
+  border-color: var(--cat);
+  color: var(--text);
+}
+
+.blueprint-chip.is-active {
+  color: var(--text);
+  border-color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 16%, var(--surface));
+}
+
+.blueprint-chip-count {
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+.blueprint-empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.blueprint-card {
+  --cat: #9b87f5;
+  position: relative;
+  overflow: hidden;
+  gap: 12px;
+  padding: 14px 16px 14px 20px;
+  border: 1px solid color-mix(in srgb, var(--cat) 22%, var(--border));
+  background: linear-gradient(100deg, color-mix(in srgb, var(--cat) 10%, var(--surface)) 0%, var(--surface) 65%);
+}
+
+.blueprint-card-accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--cat);
+}
+
+.blueprint-card:hover {
+  border-color: color-mix(in srgb, var(--cat) 60%, var(--border));
+}
+
+.blueprint-card.active {
+  border-color: var(--cat);
+  background: linear-gradient(100deg, color-mix(in srgb, var(--cat) 22%, var(--surface)) 0%, var(--surface) 75%);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat) 20%, transparent);
+}
+
+.blueprint-card.cant-craft {
+  border-style: dashed;
+  opacity: 0.7;
+  cursor: pointer;
+}
+
+.blueprint-card.cant-craft.active {
+  opacity: 1;
+}
+
+.blueprint-card .blueprint-card-icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat) 35%, transparent);
+}
+
+.blueprint-card-text {
+  min-width: 0;
+}
+
+.blueprint-card-text h4 {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.blueprint-card-text p {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.blueprint-card-cat {
+  color: var(--cat);
+  font-weight: 700;
+}
+
+html[data-theme='synthwave'] .blueprint-card-cat {
+  filter: brightness(1.2);
+}
+
+.meta-block--craft strong {
+  color: var(--muted);
+}
+
+.meta-block--craft.is-ready strong {
+  color: #16a34a;
+}
+
+html[data-theme='synthwave'] .meta-block--craft.is-ready strong {
+  color: #4ade80;
+}

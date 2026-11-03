@@ -1,0 +1,130 @@
+/* ---------------------------------------------------------------
+   Tablet showcase frame (see DeviceFrame.tsx)
+   --------------------------------------------------------------- */
+html.has-device-frame,
+html.has-device-frame body {
+  height: 100%;
+  overflow: hidden;
+}
+
+.device-stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(41, 127, 191, 0.35) 0%, rgba(41, 127, 191, 0) 45%),
+    radial-gradient(circle at 85% 90%, rgba(155, 135, 245, 0.25) 0%, rgba(155, 135, 245, 0) 45%),
+    linear-gradient(160deg, #0b1724 0%, #0f2236 55%, #0a1320 100%);
+}
+
+.device-scaler {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.device-body {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+  border-radius: 44px;
+  background: linear-gradient(145deg, #2b2f36 0%, #15181d 60%, #23272e 100%);
+  box-shadow:
+    0 0 0 2px #3a3f47,
+    0 0 0 5px #0d0f12,
+    0 40px 90px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.device-camera {
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  width: 6px;
+  height: 6px;
+  margin-top: -3px;
+  border-radius: 50%;
+  background: #0a0c0f;
+  box-shadow: inset 0 0 0 1px #2e333a;
+}
+
+.device-screen {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--bg);
+  /* Makes this element the containing block for position: fixed children */
+  transform: translateZ(0);
+}
+
+.device-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  background: var(--bg);
+}
+
+.device-caption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: rgba(226, 236, 248, 0.75);
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.device-toggle {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(226, 236, 248, 0.3);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(226, 236, 248, 0.9);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.device-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.device-toggle--floating {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 9999;
+  background: rgba(15, 23, 42, 0.8);
+  color: #fff;
+}
+
+/* ---- Make the app fit the tablet screen instead of the browser window ---- */
+.device-scroll .min-h-screen,
+.device-scroll .login-page-shell {
+  min-height: 100%;
+}
+
+.device-scroll .app-shell {
+  min-height: 834px;
+}
+
+.device-scroll .sidebar-container {
+  min-height: 834px;
+  max-height: 834px;
+  height: 834px;
+}
+
+/* Thin, unobtrusive scrollbar inside the tablet */
+.device-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.device-scroll::-webkit-scrollbar-thumb {
+  background: rgba(127, 140, 160, 0.35);
+  border-radius: 999px;
+}

@@ -12,6 +12,7 @@ namespace Artifax.DTOs
         public int TotalTime { get; set; }
         public int TimeElapsed { get; set; }
         public int BranchID { get; set; }
+        public int? SourceBranchID { get; set; }
         public int EmployeeID { get; set; }
         public bool OrderExpedite { get; set; }
         public string Status { get; set; } = string.Empty;

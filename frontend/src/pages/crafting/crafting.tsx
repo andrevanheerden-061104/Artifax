@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react';
+import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import './crafting.css';
 import AlertStrip from '../../components/layout/AlertStrip';
 import PageHeader from '../../components/layout/PageHeader';
@@ -8,16 +8,18 @@ import HistoryStats from './components/historyStats/historyStats';
 import HistoryPanel from './components/historyPanel/historyPanel';
 import CraftingItems from './components/craftingItems/craftingItems';
 import CraftingQueue from './components/craftingQueue/craftingQueue';
-import CraftPanel from './components/craftPanel/craftPanel';
+import CraftPanel, { WarehouseOption } from './components/craftPanel/craftPanel';
 import BlueprintPanel from './components/blueprintPanel/blueprintPanel';
 import NewBlueprint from './components/newBlueprint/newBlueprint';
 import BlueprintEdit from './components/blueprintEdit/BlueprintEdit';
 import { useApi } from '../../hooks';
+import { getApiErrorMessage } from '../../hooks/useApi';
 import { showError, showSuccess } from '../../utils/toast';
-import { getInventoryOverview } from '../../services/inventoryApi';
+import { getInventoryOverview, LowStockEntry } from '../../services/inventoryApi';
+import { loadBlueprints } from '../../services/blueprintApi';
 import { Blueprint } from './components/craftingData';
 import { getCurrentDateSAST } from '../../Date/dateUtils';
-import { useCurrentUser } from '../../utils/currentUser';
+import { useWorkspace } from '../../utils/workspace';
 
 interface PageProps {
   activeTab: string;
@@ -44,11 +46,21 @@ const ActiveJobsContent: FC = () => (
 );
 
 interface CraftPageProps {
+  blueprints: Blueprint[];
+  blueprintsLoading: boolean;
+  blueprintsError: string | null;
   selectedBlueprintId: string;
   selectedBlueprint: Blueprint | null;
   amount: number;
   orderExpedite: boolean;
   filter: string;
+  sourceBranchId: number | null;
+  targetBranchId: number | null;
+  chooseWarehouses: boolean;
+  warehouses: WarehouseOption[];
+  submitting: boolean;
+  onSourceChange: (branchId: number) => void;
+  onTargetChange: (branchId: number) => void;
   onFilterChange: (filter: string) => void;
   onSelectBlueprint: (blueprintId: string) => void;
   onAmountChange: (amount: number) => void;
@@ -56,17 +68,26 @@ interface CraftPageProps {
   onCraft: () => Promise<void>;
   onEditBlueprint: () => void;
   onDeleteBlueprint: () => void;
-  blueprintRefreshKey: number;
 }
 
 const CraftPage: FC<PageProps & CraftPageProps> = ({
   activeTab,
   onTabChange,
+  blueprints,
+  blueprintsLoading,
+  blueprintsError,
   selectedBlueprintId,
   selectedBlueprint,
   amount,
   orderExpedite,
   filter,
+  sourceBranchId,
+  targetBranchId,
+  chooseWarehouses,
+  warehouses,
+  submitting,
+  onSourceChange,
+  onTargetChange,
   onFilterChange,
   onSelectBlueprint,
   onAmountChange,
@@ -74,8 +95,20 @@ const CraftPage: FC<PageProps & CraftPageProps> = ({
   onCraft,
   onEditBlueprint,
   onDeleteBlueprint,
-  blueprintRefreshKey,
 }) => {
+  const blueprintPanel = (
+    <BlueprintPanel
+      blueprints={blueprints}
+      loading={blueprintsLoading}
+      error={blueprintsError}
+      selectedBlueprintId={selectedBlueprintId}
+      filter={filter}
+      onFilterChange={onFilterChange}
+      onSelectBlueprint={onSelectBlueprint}
+      onCreateBlueprint={() => onTabChange('new')}
+    />
+  );
+
   if (!selectedBlueprint) {
     return (
       <div className="crafting-panel">
@@ -93,7 +126,7 @@ const CraftPage: FC<PageProps & CraftPageProps> = ({
               </div>
               <div className="craft-panel-selected">
                 <span className="craft-panel-label">SELECT BLUEPRINT</span>
-                <h4>No Blueprint Selected</h4>
+                <h4>{blueprintsLoading ? 'Loading blueprints…' : 'No Blueprint Selected'}</h4>
                 <p style={{ color: 'var(--muted)', marginTop: '8px' }}>
                   Select a blueprint from the list to begin crafting
                 </p>
@@ -101,14 +134,7 @@ const CraftPage: FC<PageProps & CraftPageProps> = ({
             </div>
           </div>
           <div className="active-jobs-sidebar">
-            <BlueprintPanel
-              selectedBlueprintId={selectedBlueprintId}
-              filter={filter}
-              onFilterChange={onFilterChange}
-              onSelectBlueprint={onSelectBlueprint}
-              onCreateBlueprint={() => onTabChange('new')}
-              refreshKey={blueprintRefreshKey}
-            />
+            {blueprintPanel}
             <CraftingQueue />
           </div>
         </div>
@@ -130,6 +156,13 @@ const CraftPage: FC<PageProps & CraftPageProps> = ({
             blueprint={selectedBlueprint}
             amount={amount}
             orderExpedite={orderExpedite}
+            sourceBranchId={sourceBranchId}
+            targetBranchId={targetBranchId}
+            chooseWarehouses={chooseWarehouses}
+            warehouses={warehouses}
+            submitting={submitting}
+            onSourceChange={onSourceChange}
+            onTargetChange={onTargetChange}
             onAmountChange={onAmountChange}
             onToggleExpedite={onToggleExpedite}
             onCraft={onCraft}
@@ -138,14 +171,7 @@ const CraftPage: FC<PageProps & CraftPageProps> = ({
           />
         </div>
         <div className="active-jobs-sidebar">
-          <BlueprintPanel
-            selectedBlueprintId={selectedBlueprintId}
-            filter={filter}
-            onFilterChange={onFilterChange}
-            onSelectBlueprint={onSelectBlueprint}
-            onCreateBlueprint={() => onTabChange('new')}
-            refreshKey={blueprintRefreshKey}
-          />
+          {blueprintPanel}
           <CraftingQueue />
         </div>
       </div>
@@ -200,164 +226,115 @@ const BlueprintEditPage: FC<PageProps & { itemId: number | null; onCancel: () =>
 const Crafting: FC = () => {
   const [activeTab, setActiveTab] = useState<string>('active');
   const [selectedBlueprintId, setSelectedBlueprintId] = useState<string>('');
-  const [selectedBlueprint, setSelectedBlueprint] = useState<Blueprint | null>(null);
   const [amount, setAmount] = useState<number>(1);
   const [orderExpedite, setOrderExpedite] = useState<boolean>(false);
   const [filter, setFilter] = useState<string>('all');
   const [editItemId, setEditItemId] = useState<number | null>(null);
-  const [lowStockAlerts, setLowStockAlerts] = useState<string[]>([]);
+  const [lowStockAlerts, setLowStockAlerts] = useState<LowStockEntry[]>([]);
   const [blueprintRefreshKey, setBlueprintRefreshKey] = useState<number>(0);
+  const [blueprints, setBlueprints] = useState<Blueprint[]>([]);
+  const [blueprintsLoading, setBlueprintsLoading] = useState<boolean>(true);
+  const [blueprintsError, setBlueprintsError] = useState<string | null>(null);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
+  const [chosenSource, setChosenSource] = useState<number | null>(null);
+  const [chosenTarget, setChosenTarget] = useState<number | null>(null);
+  const [submitting, setSubmitting] = useState<boolean>(false);
   const api = useApi();
-  const currentUser = useCurrentUser();
-  const currentBranchId = currentUser?.branchId;
+  const workspace = useWorkspace();
   const currentDate = getCurrentDateSAST();
 
-  const handleSelectBlueprint = async (blueprintId: string) => {
+  // In a single warehouse, materials come from and go to that warehouse.
+  // In the admin overview, the admin picks both.
+  const chooseWarehouses = workspace.isAllView;
+  const sourceBranchId = chooseWarehouses ? chosenSource : workspace.activeBranchId;
+  const targetBranchId = chooseWarehouses ? chosenTarget : workspace.activeBranchId;
+
+  const selectedBlueprint = useMemo(
+    () => blueprints.find((blueprint) => blueprint.id === selectedBlueprintId) ?? null,
+    [blueprints, selectedBlueprintId],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    setBlueprintsLoading(true);
+    setBlueprintsError(null);
+    loadBlueprints()
+      .then((rows) => {
+        if (mounted) setBlueprints(rows);
+      })
+      .catch((error) => {
+        console.error('Error fetching blueprints:', error);
+        if (mounted) setBlueprintsError(getApiErrorMessage(error, 'Could not load blueprints.'));
+      })
+      .finally(() => {
+        if (mounted) setBlueprintsLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [blueprintRefreshKey]);
+
+  useEffect(() => {
+    api
+      .get<Array<Record<string, unknown>>>('/Branch')
+      .then((response) => {
+        const rows = (response.data ?? [])
+          .map((row) => ({
+            id: Number(row.branchID ?? row.BranchID ?? 0),
+            name: String(row.branchName ?? row.BranchName ?? ''),
+          }))
+          .filter((row) => row.id > 0)
+          .sort((left, right) => left.id - right.id);
+        setWarehouses(rows);
+        if (rows.length > 0) {
+          setChosenSource((current) => current ?? rows[0].id);
+          setChosenTarget((current) => current ?? rows[0].id);
+        }
+      })
+      .catch((error) => console.error('Failed to load warehouses', error));
+  }, [api]);
+
+  const handleSelectBlueprint = useCallback((blueprintId: string) => {
     setSelectedBlueprintId(blueprintId);
     setAmount(1);
-    const itemId = parseInt(blueprintId.replace('bp-', ''));
-
-    try {
-      const [itemResponse, ingredientsResponse] = await Promise.all([
-        api.get(`/Item/item/${itemId}`),
-        api.get(`/Item/itemIngredient/item/${itemId}`),
-      ]);
-      const branchResp = await api.get(currentBranchId != null ? `/Item/Branch/${currentBranchId}` : '/Item/Branch');
-      const itemsResp = await api.get('/Item/item');
-
-      if (itemResponse.data && ingredientsResponse.data) {
-        const item = itemResponse.data;
-        const ingredients = ingredientsResponse.data;
-        const allItems = itemsResp.data;
-
-        const itemById: Record<number, any> = {};
-        allItems.forEach((it: any) => {
-          const id = Number(it.ItemID ?? it.itemID ?? it.itemId ?? 0);
-          if (id) itemById[id] = it;
-        });
-
-        let inventoryMap: Record<number, number> = {};
-        try {
-          if (branchResp.data) {
-            const branchItems = branchResp.data;
-            branchItems.forEach((bic: any) => {
-              const itemKey = Number(bic.ItemID ?? bic.itemID ?? bic.itemId ?? 0);
-              const quantity = Number(bic.ItemQuantity ?? bic.itemQuantity ?? 0);
-              if (!itemKey) return;
-              inventoryMap[itemKey] = (inventoryMap[itemKey] || 0) + quantity;
-            });
-          }
-        } catch (e) {
-          console.error('Error fetching inventory for blueprint:', e);
-        }
-
-        const blueprintItemId = Number(item.itemID ?? item.ItemID ?? 0);
-        const blueprintInfo = itemById[blueprintItemId];
-        const blueprint: Blueprint = {
-          id: `bp-${blueprintItemId}`,
-          name: blueprintInfo?.ItemName ?? item.itemName,
-          description: `Production time: ${blueprintInfo?.ProductionTime ?? item.productionTime}s`,
-          category: (blueprintInfo?.ItemCategory ?? item.itemCategory ?? 'mechanical').toString().toLowerCase() as any,
-          have: inventoryMap[blueprintItemId] ?? 0,
-          craft: 0,
-          productionTime: item.productionTime,
-          materials: ingredients.map((ing: any) => {
-            const ingredientId = Number(ing.ingredientID ?? ing.IngredientID ?? ing.itemID ?? ing.itemId ?? 0);
-            const ingredientInfo = itemById[ingredientId];
-            return {
-              itemId: ingredientId || undefined,
-              name: ingredientInfo?.ItemName ?? ing.itemName ?? `Item ${ingredientId}`,
-              need: Number(ing.quantity ?? 0),
-              have: ingredientId ? inventoryMap[ingredientId] ?? 0 : 0,
-            };
-          }),
-        };
-
-        setSelectedBlueprint(blueprint);
-      }
-    } catch (err) {
-      console.error('Error fetching selected blueprint:', err);
-    }
-  };
+  }, []);
 
   const handleCraft = async (): Promise<void> => {
-    if (!selectedBlueprint || !selectedBlueprintId) return;
+    if (!selectedBlueprint) return;
 
-    const itemId = parseInt(selectedBlueprintId.replace('bp-', ''), 10);
-    if (Number.isNaN(itemId)) {
-      console.error('Invalid blueprint item id');
+    const itemId = parseInt(selectedBlueprint.id.replace('bp-', ''), 10);
+    if (Number.isNaN(itemId)) return;
+
+    if (sourceBranchId == null || targetBranchId == null) {
+      showError('Choose where the materials come from and where to craft.');
       return;
     }
 
-    if (currentUser?.branchId === 3) {
-      showError(
-        'Branch 3 is a virtual branch and cannot craft directly. Please switch to branch 1 or 2 to craft.'
-      );
-      return;
-    }
-
+    setSubmitting(true);
     try {
-      const branchID = currentUser?.branchId ?? 1;
-      const employeeID = currentUser?.employeeId ?? 1;
-
+      // The backend checks stock, takes the materials out and queues the order in one step
       await api.post('/Order/create', {
         itemID: itemId,
         quantity: amount,
-        branchID,
-        employeeID,
+        branchID: targetBranchId,
+        sourceBranchID: sourceBranchId,
+        employeeID: workspace.user?.employeeId ?? 0,
         orderExpedite,
       });
 
-      const branchItemsResp = await api.get(`/Item/Branch/${branchID}`);
-      const branchItems = branchItemsResp.data;
-
-      const branchQuantityByItemId = branchItems.reduce((map: Record<number, number>, bic: any) => {
-        const id = bic.ItemID ?? bic.itemID ?? bic.itemId ?? 0;
-        if (!id) return map;
-        map[id] = (map[id] || 0) + (bic.ItemQuantity || bic.itemQuantity || 0);
-        return map;
-      }, {} as Record<number, number>);
-
-      const updateResults = await Promise.allSettled(
-        selectedBlueprint.materials.map(async (material) => {
-          const materialItemId = material.itemId;
-          if (!materialItemId) {
-            return;
-          }
-
-          const currentMaterialQuantity = branchQuantityByItemId[materialItemId] ?? 0;
-          const updatedQuantity = Math.max(0, currentMaterialQuantity - (material.need * amount));
-          await api.put(
-            `/Item/Branch/${branchID}/Item/${materialItemId}`,
-            null,
-            { params: { quantity: updatedQuantity } },
-          );
-        }),
-      );
-
-      const failedUpdates = updateResults.filter((result) => result.status === 'rejected');
-      if (failedUpdates.length > 0) {
-        console.error('Some branch inventory updates failed', failedUpdates);
-        showError('Craft order created, but updating some branch item quantities failed.');
-      } else {
-        showSuccess('Craft order submitted successfully and inventory updated.');
-      }
-
+      const route =
+        sourceBranchId === targetBranchId
+          ? ''
+          : ` (materials from ${warehouses.find((w) => w.id === sourceBranchId)?.name ?? 'another warehouse'})`;
+      showSuccess(`Crafting ${amount} × ${selectedBlueprint.name}${route}.`);
+      setAmount(1);
       setBlueprintRefreshKey((prev) => prev + 1);
-
-      setSelectedBlueprint((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          materials: prev.materials.map((material) => ({
-            ...material,
-            have: Math.max(0, material.have - (material.need * amount)),
-          })),
-        };
-      });
+      window.dispatchEvent(new CustomEvent('crafting-order-updated'));
     } catch (error) {
       console.error('Failed to create craft order', error);
-      showError('Unable to place craft order. Please try again.');
+      showError(getApiErrorMessage(error, 'Unable to place craft order. Please try again.'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -385,7 +362,6 @@ const Crafting: FC = () => {
     try {
       await api.delete(`/Item/${itemId}`);
       showSuccess('Blueprint deleted successfully.');
-      setSelectedBlueprint(null);
       setSelectedBlueprintId('');
       setAmount(1);
       setActiveTab('active');
@@ -400,14 +376,14 @@ const Crafting: FC = () => {
     const loadLowStock = async (): Promise<void> => {
       try {
         const overview = await getInventoryOverview();
-        setLowStockAlerts(overview.alerts);
+        setLowStockAlerts(overview.lowStock);
       } catch (error) {
         console.error('Failed to load low stock alerts', error);
       }
     };
 
     void loadLowStock();
-  }, []);
+  }, [blueprintRefreshKey]);
 
   return (
     <div className="page-content">
@@ -416,7 +392,7 @@ const Crafting: FC = () => {
           title="Crafting Management"
           subtitle={`Crafting Dashboard · ${currentDate}`}
         />
-        <AlertStrip label={`Low Stock: ${lowStockAlerts.length}`} items={lowStockAlerts} />
+        <AlertStrip items={lowStockAlerts} />
 
         <div className="crafting-page">
           {activeTab === 'active' && <ActiveJobsPage />}
@@ -425,11 +401,21 @@ const Crafting: FC = () => {
             <CraftPage
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              blueprints={blueprints}
+              blueprintsLoading={blueprintsLoading}
+              blueprintsError={blueprintsError}
               selectedBlueprintId={selectedBlueprintId}
               selectedBlueprint={selectedBlueprint}
               amount={amount}
               orderExpedite={orderExpedite}
               filter={filter}
+              sourceBranchId={sourceBranchId}
+              targetBranchId={targetBranchId}
+              chooseWarehouses={chooseWarehouses}
+              warehouses={warehouses}
+              submitting={submitting}
+              onSourceChange={setChosenSource}
+              onTargetChange={setChosenTarget}
               onFilterChange={setFilter}
               onSelectBlueprint={handleSelectBlueprint}
               onAmountChange={setAmount}
@@ -437,14 +423,16 @@ const Crafting: FC = () => {
               onCraft={handleCraft}
               onEditBlueprint={handleEditBlueprint}
               onDeleteBlueprint={handleDeleteBlueprint}
-              blueprintRefreshKey={blueprintRefreshKey}
             />
           )}
           {activeTab === 'new' && (
             <NewBlueprintPage
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              onCancel={() => setActiveTab('active')}
+              onCancel={() => {
+                setBlueprintRefreshKey((prev) => prev + 1);
+                setActiveTab('craft');
+              }}
             />
           )}
           {activeTab === 'edit' && (
@@ -455,9 +443,7 @@ const Crafting: FC = () => {
               onCancel={() => setActiveTab('craft')}
               onSaved={() => {
                 setActiveTab('craft');
-                if (selectedBlueprintId) {
-                  handleSelectBlueprint(selectedBlueprintId);
-                }
+                setBlueprintRefreshKey((prev) => prev + 1);
               }}
             />
           )}

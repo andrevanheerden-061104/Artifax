@@ -1,109 +1,112 @@
 using Artifax.Data;
+using Artifax.Helpers;
 using Artifax.Services;
 using DotNetEnv;
 using Microsoft.EntityFrameworkCore;
 
-// Load environment variables from .env.local file
+// Load environment variables from a local .env file when running on your own computer.
+// On Render the variables come from the dashboard, so a missing file is fine.
 Env.Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-//Cors
+// ---------------------------------------------------------------------------
+// CORS — which websites may call this API from the browser.
+// FRONTEND_URL can hold one or more comma-separated URLs (e.g. your Vercel site).
+// When the frontend uses the Vercel /api rewrite, calls are same-origin and CORS
+// doesn't come into play, but keeping this makes direct calls work too.
+// ---------------------------------------------------------------------------
+var allowedOrigins = new List<string> { "http://localhost:3000", "http://localhost:3001", "http://localhost:5253" };
+var frontendUrls = Environment.GetEnvironmentVariable("FRONTEND_URL");
+if (!string.IsNullOrWhiteSpace(frontendUrls))
+{
+    allowedOrigins.AddRange(frontendUrls
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(url => url.TrimEnd('/')));
+}
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp",
-        policy =>
-        {
-                        // Replace with your actual React app's URL/Port
-                        policy.WithOrigins("http://localhost:3000", "http://localhost:3001", "http://localhost:5253") 
-                  .AllowAnyHeader()
-                .AllowAnyMethod()
-                .AllowCredentials();
-        });
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.WithOrigins(allowedOrigins.ToArray())
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
 });
 
-builder.Services.AddControllers();
+// Every endpoint needs a logged-in session unless marked [AllowAnonymous].
+builder.Services.AddControllers(options => options.Filters.Add<RequireSessionFilter>());
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Prefer configured connection string (appsettings/user-secrets), then fall back to DATABASE_* vars.
+// ---------------------------------------------------------------------------
+// Database (Supabase Postgres).
+// Set ConnectionStrings__ArtifaxDatabase on Render, or the DATABASE_* variables.
+// ---------------------------------------------------------------------------
 var connectionString = builder.Configuration.GetConnectionString("ArtifaxDatabase");
-Console.WriteLine($"[CRITICAL DEBUG] String starts with: '{connectionString?.Substring(0, Math.Min(connectionString?.Length ?? 0, 10))}'");
 
 if (string.IsNullOrWhiteSpace(connectionString))
 {
     var host = Environment.GetEnvironmentVariable("DATABASE_HOST");
-    var port = Environment.GetEnvironmentVariable("DATABASE_PORT");
-    var database = Environment.GetEnvironmentVariable("DATABASE_NAME");
+    var port = Environment.GetEnvironmentVariable("DATABASE_PORT") ?? "5432";
+    var database = Environment.GetEnvironmentVariable("DATABASE_NAME") ?? "postgres";
     var username = Environment.GetEnvironmentVariable("DATABASE_USERNAME");
     var password = Environment.GetEnvironmentVariable("DATABASE_PASSWORD");
 
-    connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+    if (!string.IsNullOrWhiteSpace(host))
+    {
+        connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};SSL Mode=Require;Trust Server Certificate=true";
+    }
 }
 
-if (string.IsNullOrWhiteSpace(connectionString) || connectionString.Contains("Host=;"))
+if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException(
-        "Database connection is not configured. Set ConnectionStrings:ArtifaxDatabase (user-secrets) or DATABASE_* environment variables.");
+        "Database connection is not configured. Set ConnectionStrings__ArtifaxDatabase (or the DATABASE_* variables).");
 }
-
-// (debug prefix removed)
 
 builder.Services.AddDbContext<ArtifaxContext>(options => options.UseNpgsql(connectionString));
 
-// Register the background service for order time tracking
+// Supabase email codes for the second login step
+builder.Services.AddHttpClient<SupabaseOtpService>(client => client.Timeout = TimeSpan.FromSeconds(15));
+
+// Background job: moves crafting orders along every minute
 builder.Services.AddHostedService<OrderTimeTrackingService>();
 
 builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(option => {
+builder.Services.AddSession(option =>
+{
     option.IdleTimeout = TimeSpan.FromHours(14);
     option.Cookie.HttpOnly = true;
     option.Cookie.IsEssential = true;
-
-    option.Cookie.SameSite = SameSiteMode.None; 
+    option.Cookie.SameSite = SameSiteMode.None;
     option.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 });
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ArtifaxContext>();
-    dbContext.Database.ExecuteSqlRaw(@"
-        CREATE TABLE IF NOT EXISTS ""OrderItems"" (
-            ""OrderItemID"" integer GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
-            ""OrderID"" integer NOT NULL,
-            ""ItemID"" integer NOT NULL,
-            ""Quantity"" integer NOT NULL,
-            CONSTRAINT ""FK_OrderItems_Orders_OrderID"" FOREIGN KEY (""OrderID"") REFERENCES ""Orders"" (""OrderID"") ON DELETE CASCADE,
-            CONSTRAINT ""FK_OrderItems_Items_ItemID"" FOREIGN KEY (""ItemID"") REFERENCES ""Items"" (""ItemID"") ON DELETE CASCADE
-        );
-
-        CREATE INDEX IF NOT EXISTS ""IX_OrderItems_ItemID"" ON ""OrderItems"" (""ItemID"");
-        CREATE INDEX IF NOT EXISTS ""IX_OrderItems_OrderID"" ON ""OrderItems"" (""OrderID"");
-    ");
-}
-
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
     app.MapOpenApi();
+
+    // Render handles HTTPS in front of the app, so only redirect when running locally.
+    app.UseHttpsRedirection();
 }
 
 app.UseCors("AllowReactApp");
 
-app.UseHttpsRedirection();
-
 app.UseSession();
 
 app.UseAuthorization();
+
+// Simple health check for Render ("Health Check Path" = /health)
+app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapControllers();
 

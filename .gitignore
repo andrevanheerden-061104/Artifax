@@ -3,4 +3,4 @@
 /obj
 bin
 obj
-frontend/out/
+frontend/out/node_modules

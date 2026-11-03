@@ -12,11 +12,13 @@ import OtpVerifyPage from './pages/auth/OtpVerifyPage';
 import OtpVerifySuccessPage from './pages/auth/OtpVerifySuccessPage';
 import OtpVerifyFailedPage from './pages/auth/OtpVerifyFailedPage';
 import UsersPage from './pages/users/users';
-import ProtectedRoute from './layouts/ProtectedRoute'; // Double check this import path
+import ProtectedRoute from './layouts/ProtectedRoute';
+import DeviceFrame from './components/layout/DeviceFrame';
 
 function App() {
   return (
     <HashRouter>
+      <DeviceFrame>
       <Routes>
         {/* 1. PUBLIC ROUTES (Completely isolated from layouts & sidebars) */}
         <Route path="/login" element={<LoginPage />} />
@@ -42,6 +44,7 @@ function App() {
       </Routes>
 
       <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
+      </DeviceFrame>
     </HashRouter>
   );
 }

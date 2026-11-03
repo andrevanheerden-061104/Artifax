@@ -1,11 +1,11 @@
 import React, { FC, useEffect, useState } from 'react';
 import Button from '../../../../components/common/Button';
 import FilterSelect from '../../../../components/common/FilterSelect';
-import { useApi, useThemeAwareIcon } from '../../../../hooks';
+import { useApi } from '../../../../hooks';
 import { showError, showSuccess } from '../../../../utils/toast';
+import { getApiErrorMessage } from '../../../../hooks/useApi';
 import './newBlueprint.css';
-import unitIcon from '../../../../assets/images/uniitIcon.png';
-import unitIconWhite from '../../../../assets/images/uniitIconWhite.png';
+import { CategoryPicker, CategoryTile, categoryStyle, getCategory } from '../../../../components/common/categories';
 
 interface MaterialRow {
   id: string;
@@ -22,15 +22,6 @@ interface ItemOption {
   label: string;
 }
 
-const categoryOptions = [
-  { value: 'metal', label: 'Metal' },
-  { value: 'mechanical', label: 'Mechanical' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'paper', label: 'Paper' },
-  { value: 'plastic', label: 'Plastic' },
-  { value: 'other', label: 'Other' },
-];
 
 const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
   const api = useApi();
@@ -39,7 +30,7 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
   const [craftTimeMinutes, setCraftTimeMinutes] = useState(1);
   const [price, setPrice] = useState<number>(0);
   const [materials, setMaterials] = useState<MaterialRow[]>([
-    { id: 'mat-1', item: 'Metal', amount: 1 },
+    { id: 'mat-1', item: '', amount: 1 },
     { id: 'mat-2', item: '', amount: 1 },
     { id: 'mat-3', item: '', amount: 1 },
   ]);
@@ -79,7 +70,6 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
     );
   };
 
-  const unitIconSrc = useThemeAwareIcon(unitIcon, unitIconWhite);
 
   const addMaterialRow = () => {
     setMaterials((current) => [
@@ -121,7 +111,8 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
           price: Number(price) || 0,
         };
 
-        const createdItemResponse = await api.post('/Item/item/', itemPayload);
+        // Creates the item with a 0-stock row in every warehouse
+        const createdItemResponse = await api.post('/Item/item/CreateItemDefaultQuantity', itemPayload);
         itemId = createdItemResponse.data?.itemID;
         if (!itemId) {
           throw new Error('Unable to create the item for this blueprint.');
@@ -144,10 +135,10 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
 
         let ingredientId = nameToId[materialName];
         if (!ingredientId) {
-          const createdIngredientResponse = await api.post('/Item/item/', {
+          const createdIngredientResponse = await api.post('/Item/item/CreateItemDefaultQuantity', {
             itemName: materialName,
             itemCategory: 'other',
-            productionTime: 1,
+            productionTime: 0,
           });
           ingredientId = createdIngredientResponse.data?.itemID;
           if (ingredientId) {
@@ -172,25 +163,11 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
       };
       await api.put(`/Item/item/${itemId}/blueprint`, blueprintPayload);
 
-      try {
-        const branchesResponse = await api.get('/Branch');
-        const branches: any[] = branchesResponse.data || [];
-        if (branches.length > 0) {
-          await api.post('/Item/Branch', {
-            branchID: branches[0].branchID,
-            itemID: itemId,
-            itemQuantity: 0,
-          });
-        }
-      } catch (branchError) {
-        // optional inventory zero-quantity creation; ignore if branch data is unavailable
-      }
-
       showSuccess('Blueprint created successfully. Returning to crafting page.');
       onCancel();
     } catch (error) {
       console.error('Error creating blueprint:', error);
-      showError('Unable to save blueprint. Please fix the issue and try again.');
+      showError(getApiErrorMessage(error, 'Unable to save blueprint. Please fix the issue and try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -199,11 +176,15 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
   const hasValidName = blueprintName.trim().length > 0;
 
   return (
-    <div className="new-blueprint-panel">
+    <div className="new-blueprint-panel blueprint-form--themed" style={categoryStyle(category)}>
       <div className="new-blueprint-header">
         <div className="new-blueprint-heading">
-          <img src={unitIconSrc} alt="Blueprint icon" className="new-blueprint-icon" />
-          <span className="new-blueprint-tag">New Blueprint</span>
+          <CategoryTile category={category} size="lg" />
+          <div className="blueprint-form-heading-text">
+            <span className="new-blueprint-tag">New Blueprint</span>
+            <strong className="blueprint-form-preview">{blueprintName.trim() || 'Untitled blueprint'}</strong>
+            <span className="blueprint-form-sub">{getCategory(category).label} · {craftTimeMinutes} min per unit</span>
+          </div>
         </div>
       </div>
 
@@ -222,6 +203,11 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
           </div>
         </div>
 
+        <div className="field-group">
+          <label>Category</label>
+          <CategoryPicker value={category} onChange={setCategory} />
+        </div>
+
         <div className="field-row field-row--split">
           <div className="field-group field-group--craft-time">
             <label htmlFor="craftTimeMinutes">Craft Time (min)</label>
@@ -236,16 +222,6 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
             />
           </div>
 
-          <div className="field-group field-group--category">
-            <label htmlFor="blueprintCategory">Category of Blueprint</label>
-            <FilterSelect
-              value={category}
-              onChange={setCategory}
-              options={categoryOptions}
-              className="field-select"
-              ariaLabel="Select blueprint category"
-            />
-          </div>
           <div className="field-group field-group--price">
             <label htmlFor="blueprintPrice">Price (ZAR)</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -262,7 +238,7 @@ const NewBlueprint: FC<NewBlueprintProps> = ({ onCancel }) => {
             </div>
           </div>
         </div>
- <label htmlFor="blueprintCategory">Required materials</label>
+        <label>Required materials</label>
         <div className="material-list">
           {materials.map((material) => (
             <div key={material.id} className="materials-row">

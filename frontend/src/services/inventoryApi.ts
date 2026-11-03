@@ -146,10 +146,14 @@ const INVENTORY_CATEGORY_DEFINITIONS: InventoryCategoryDefinition[] = [
   { label: 'Others', aliases: ['other', 'others', 'misc', 'miscellaneous', 'uncategorized'] },
 ];
 
+export type LowStockEntry = { name: string; quantity: number; location?: string };
+
 export type InventoryOverview = {
   items: InventoryItem[];
   previewRows: DashboardPreviewRow[];
   alerts: string[];
+  /** Low-stock rows for the notification strip (includes the warehouse when several are shown). */
+  lowStock: LowStockEntry[];
   stats: InventoryStat[];
   tabs: InventoryTab[];
 };
@@ -247,12 +251,19 @@ export function buildInventoryOverview(items: InventoryItem[]): InventoryOvervie
   tabs.push(...extraTabs);
 
   const alerts = lowStockItems.map((item) => `${item.name} (${item.quantity} remaining)`);
+  const showLocation = new Set(items.map((item) => item.branchId)).size > 1;
+  const lowStock: LowStockEntry[] = lowStockItems.map((item) => ({
+    name: item.name,
+    quantity: item.quantity,
+    location: showLocation ? item.location : undefined,
+  }));
   const totalUnits = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return {
     items,
     previewRows,
     alerts,
+    lowStock,
     stats: [
       { id: 'totalItems', label: 'Total Items', value: items.length },
       { id: 'lowStock', label: 'Low Stock', value: lowStockItems.length },
@@ -428,7 +439,29 @@ export async function getInventoryOverview(): Promise<InventoryOverview> {
   return buildInventoryOverview(items);
 }
 
+/** Item IDs that have a blueprint (i.e. are crafted, not bought in). */
+export async function getBlueprintProductIds(): Promise<Set<number>> {
+  const rows = await fetchJson<Array<Record<string, unknown>>>('Item/item/allItemBlueprints');
+  return new Set(rows.map((row) => Number(row.itemID ?? row.ItemID ?? row.itemId ?? 0)).filter((id) => id > 0));
+}
+
+export type RestockLine = { itemID: number; quantity: number };
+
+/** Adds stock for several materials in one warehouse. */
+export async function restockBranch(branchId: number, lines: RestockLine[]): Promise<void> {
+  try {
+    await apiClient.post(`Item/Branch/${branchId}/restock`, lines);
+  } catch (error) {
+    if (axios.isAxiosError(error) && typeof error.response?.data === 'string' && error.response.data) {
+      throw new Error(error.response.data);
+    }
+    throw toFetchStyleError(error);
+  }
+}
+
 const inventoryApi = {
+  getBlueprintProductIds,
+  restockBranch,
   getItems,
   getBranchItems,
   getBranches,

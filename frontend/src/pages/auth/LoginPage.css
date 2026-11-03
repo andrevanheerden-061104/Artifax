@@ -461,3 +461,55 @@ html[data-theme='synthwave'] .login-status-card {
     font-size: 1.1rem;
   }
 }
+
+/* Demo credentials helper */
+.login-demo-box {
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.login-demo-title {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.login-demo-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.login-demo-actions .login-secondary-action {
+  margin: 0;
+}
+
+.login-resend-row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.login-resend-row button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.login-resend-row button:disabled {
+  color: var(--muted);
+  text-decoration: none;
+  cursor: default;
+}

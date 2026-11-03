@@ -1,9 +1,7 @@
 import { FormEvent, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './LoginPage.css';
-import { setCurrentUser } from '../../utils/currentUser';
-import { clearAuthToken, setAuthToken } from '../../utils/authToken';
-import {  getEmployeeByEmail, getBranches, loginEmployee, getCurrentUserFromSession } from '../../services/authApi';
+import { loginEmployee, storeSessionUser } from '../../services/authApi';
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -58,13 +56,21 @@ function LoginPage() {
         password,
       });
 
+      if (!loginResponse.requires2FA && loginResponse.user) {
+        // Demo accounts skip the emailed code
+        storeSessionUser(loginResponse.user);
+        navigate('/dashboard', { replace: true });
+        return;
+      }
 
-      navigate('/login/verify');
+      navigate('/login/verify', { state: { email: loginResponse.email } });
     } catch (error) {
       let message = 'Login failed. Please check your credentials.';
       const errAny = error as any;
       if (errAny?.status === 401) {
         message = 'Incorrect email or password.';
+      } else if (errAny?.status === 503) {
+        message = errAny.message || 'We could not send your login code. Please try again shortly.';
       } else if (error instanceof Error && error.message) {
         message = error.message;
       }
@@ -121,7 +127,7 @@ function LoginPage() {
               {((submitAttempted || emailTouched) && emailError) ? (
                 <p id="email-hint" className="login-field-hint error">{emailError}</p>
               ) : (
-                <p id="email-hint" className="login-field-hint">Use your company email address.</p>
+                <p id="email-hint" className="login-field-hint">We'll email you a 6-digit code to finish signing in.</p>
               )}
             </label>
 
@@ -192,6 +198,19 @@ function LoginPage() {
             <button type="submit" className="login-submit" disabled={!isFormValid || isSubmitting}>
               {isSubmitting ? 'Signing in...' : 'Login'}
             </button>
+
+            {/* Portfolio reviewers: one-click demo credentials (these accounts skip the emailed code) */}
+            <div className="login-demo-box">
+              <p className="login-demo-title">Just looking around?</p>
+              <div className="login-demo-actions">
+                <button type="button" className="login-secondary-action" onClick={() => { setEmail('demo@artifax.app'); setPassword('ArtifaxDemo2026!'); }}>
+                  Demo · Warehouse 1
+                </button>
+                <button type="button" className="login-secondary-action" onClick={() => { setEmail('cpt@artifax.app'); setPassword('ArtifaxDemo2026!'); }}>
+                  Demo · Warehouse 2
+                </button>
+              </div>
+            </div>
           </form>
         </div>
       </section>

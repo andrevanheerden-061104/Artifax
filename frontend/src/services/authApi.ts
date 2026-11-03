@@ -1,16 +1,11 @@
 import axios, { AxiosResponse } from 'axios';
 import { api } from '../hooks/useApi';
+import { CurrentUser, setCurrentUser } from '../utils/currentUser';
+import { resetWorkspaceSelection } from '../utils/workspace';
 
 export type LoginRequest = {
   email: string;
   password: string;
-};
-
-export type LoginEmployeeResponse = {
-  employeeId?: number;
-  employeeEmail?: string;
-  employeeName?: string;
-  branchId?: number;
 };
 
 export type CurrentUserResponse = {
@@ -20,6 +15,18 @@ export type CurrentUserResponse = {
   userLevel?: string;
   userEmail?: string;
   username?: string;
+  employeeId?: number | null;
+  branchId?: number | null;
+  branchName?: string | null;
+};
+
+export type LoginEmployeeResponse = {
+  /** True when a 6-digit code was emailed and must be entered next. */
+  requires2FA: boolean;
+  /** Masked email the code was sent to (e.g. a••••@gmail.com). */
+  email?: string;
+  /** Present when the account skips the code (demo accounts) — the user is already logged in. */
+  user?: CurrentUserResponse;
 };
 
 export type EmployeeDetailsResponse = {
@@ -100,10 +107,28 @@ export function getBranchById(branchId: number): Promise<BranchDto> {
   return withAxios<BranchDto>(api.get(`/Branch/${branchId}`));
 }
 
-export function GetOtpQrCode () {
-  return withAxios<{ qrCodeUri: string }>(api.get('/User/2fa-setup-uri'));
+export function verifyLoginCode(code: string): Promise<CurrentUserResponse> {
+  return withAxios<CurrentUserResponse>(api.post('/User/employees/verify-2fa', { code }));
 }
 
-export function VerifyOtpCode (code: string) {
-  return withAxios(api.post('/User/employees/verify-2fa', { code }));
+export function resendLoginCode(): Promise<{ email?: string }> {
+  return withAxios<{ email?: string }>(api.post('/User/employees/resend-code'));
+}
+
+/** Saves the logged-in user (from /User/me or the login response) for the rest of the app. */
+export function storeSessionUser(sessionUser: CurrentUserResponse): CurrentUser {
+  const email = sessionUser.UserEmail ?? sessionUser.userEmail ?? '';
+  const user: CurrentUser = {
+    name: sessionUser.Username ?? sessionUser.username ?? email,
+    role: sessionUser.UserLevel ?? sessionUser.userLevel ?? 'Employee',
+    email,
+    employeeId: sessionUser.employeeId ?? undefined,
+    branchId: sessionUser.branchId ?? undefined,
+    branchName: sessionUser.branchName ?? undefined,
+  };
+
+  setCurrentUser(user);
+  // Admins start on the "All warehouses" overview after each login.
+  resetWorkspaceSelection();
+  return user;
 }

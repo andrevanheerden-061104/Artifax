@@ -1,13 +1,12 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Artifax.DTOs;
 using Artifax.Models;
 using Artifax.Data;
+using Artifax.Helpers;
+using Artifax.Services;
 using Microsoft.EntityFrameworkCore;
-using System.Diagnostics;
-using Microsoft.AspNetCore.Hosting;
-using System;
-using Google.Authenticator;
-using System.Web;
 
 namespace Artifax.Controllers
 {
@@ -22,13 +21,65 @@ namespace Artifax.Controllers
         }
 
         readonly ArtifaxContext context;
+        readonly SupabaseOtpService otpService;
 
+        // Used by unit tests.
         public UserController(ArtifaxContext incoming)
         {
             context = incoming;
         }
 
-        bool isAdmin => HttpContext.Session.GetString("UserLevel") == EmployeeLevels.Admin.ToString();
+        [ActivatorUtilitiesConstructor]
+        public UserController(ArtifaxContext incoming, SupabaseOtpService otp)
+        {
+            context = incoming;
+            otpService = otp;
+        }
+
+        bool isAdmin => HttpContext.Session.GetString(SessionKeys.UserLevel) == EmployeeLevels.Admin.ToString();
+
+        /// <summary>
+        /// Accounts that skip the emailed code (e.g. the portfolio demo login).
+        /// Set TWO_FACTOR_BYPASS_EMAILS to a comma-separated list. Defaults to the two demo accounts.
+        /// </summary>
+        static bool BypassesTwoFactor(string email)
+        {
+            var raw = Environment.GetEnvironmentVariable("TWO_FACTOR_BYPASS_EMAILS") ?? "demo@artifax.app,cpt@artifax.app";
+            return raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Any(entry => string.Equals(entry, email, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Stores the employee in the session = they are now logged in.</summary>
+        async Task<CurrentUserDto> CompleteLoginAsync(Employee employee)
+        {
+            HttpContext.Session.Remove(SessionKeys.Pending2FAEmail);
+            HttpContext.Session.SetString(SessionKeys.UserLevel, employee.EmployeeLevel ?? EmployeeLevels.Employee.ToString());
+            HttpContext.Session.SetString(SessionKeys.UserEmail, employee.EmployeeEmail ?? "");
+            HttpContext.Session.SetString(SessionKeys.Username, employee.EmployeeName ?? "");
+            HttpContext.Session.SetInt32(SessionKeys.BranchId, employee.BranchId);
+            HttpContext.Session.SetInt32(SessionKeys.EmployeeId, employee.EmployeeId);
+            return await BuildCurrentUserAsync();
+        }
+
+        async Task<CurrentUserDto> BuildCurrentUserAsync()
+        {
+            var branchId = HttpContext.Session.GetInt32(SessionKeys.BranchId);
+            string branchName = null;
+            if (branchId != null)
+            {
+                branchName = (await context.Branches.FindAsync(branchId.Value))?.BranchName;
+            }
+
+            return new CurrentUserDto
+            {
+                UserLevel = HttpContext.Session.GetString(SessionKeys.UserLevel),
+                UserEmail = HttpContext.Session.GetString(SessionKeys.UserEmail),
+                Username = HttpContext.Session.GetString(SessionKeys.Username),
+                EmployeeId = HttpContext.Session.GetInt32(SessionKeys.EmployeeId),
+                BranchId = branchId,
+                BranchName = branchName
+            };
+        }
 
         #region GetRoutes
         //Get All Employees
@@ -59,48 +110,23 @@ namespace Artifax.Controllers
             return EmployeeReadDto.ToDto(_result);
         }
 
+
+        [AllowAnonymous]
         [HttpGet("me")]
-        public IActionResult GetCurrentUser()
+        public async Task<IActionResult> GetCurrentUser()
         {
-            // Check if a session exists
-            var _userLevel = HttpContext.Session.GetString("UserLevel");
+            var _userLevel = HttpContext.Session.GetString(SessionKeys.UserLevel);
 
             if (string.IsNullOrEmpty(_userLevel))
             {
-                // If no session exists, the user is logged out. 
-                // Returning 401 Unauthorized tells the frontend to redirect to the login screen.
+                // No session = logged out. 401 tells the frontend to go to the login screen.
                 return Unauthorized("No active session.");
             }
 
-            // Return an anonymous object (or create a new CurrentUserDto) with the display details
-            return Ok(new CurrentUserDto
-            {
-                UserLevel = _userLevel,
-                UserEmail = HttpContext.Session.GetString("UserEmail"),
-                Username = HttpContext.Session.GetString("Username")
-            });
-        }
-
-        [HttpGet("2fa-setup-uri")]
-        public async Task<IActionResult> Get2FaSetupUri()
-        {
-            var pendingEmail = HttpContext.Session.GetString("Pending2FAEmail");
-            if (string.IsNullOrEmpty(pendingEmail)) return Unauthorized("No login session pending.");
-
-            var employee = await context.Employees.FirstAsync(e => e.EmployeeEmail == pendingEmail);
-
-            // Instantiate the Google Authenticator engine
-            var tfa = new TwoFactorAuthenticator();
-
-            // Generate the setup info using the raw secret we saved in the database
-            var setupInfo = tfa.GenerateSetupCode("ArtifaxApp", employee.EmployeeEmail, employee.TwoFactorSecret, false, 3);
-
-            // setupInfo.ManualEntryKey is the Base32 converted string that Authenticator apps require
-            string issuer = "ArtifaxApp";
-            string qrCodeUri = $"otpauth://totp/{HttpUtility.UrlEncode(issuer)}:{HttpUtility.UrlEncode(employee.EmployeeEmail)}?secret={setupInfo.ManualEntryKey}&issuer={HttpUtility.UrlEncode(issuer)}&digits=6&period=30";
-            return Ok(new { qrCodeUri, rawSecret = setupInfo.ManualEntryKey });
+            return Ok(await BuildCurrentUserAsync());
         }
         #endregion
+
 
         #region PostRoutes
 
@@ -140,34 +166,59 @@ namespace Artifax.Controllers
             return CreatedAtAction(nameof(GetEmployeeByEmail), new { email = _employee.EmployeeEmail }, _dto);
         }
 
+        // Step 1 of login: check email + password. If correct, email a 6-digit code via Supabase.
+        [AllowAnonymous]
         [HttpPost("employees/login")]
-        public async Task<ActionResult<EmployeeReadDto>> LoginEmployee(LoginDto incoming)
+        public async Task<IActionResult> LoginEmployee(LoginDto incoming)
         {
-            //Find employee by email
-            var _employee = await context.Employees.FirstOrDefaultAsync(employee => employee.EmployeeEmail == incoming.Email);
-            if (_employee == null) return Unauthorized("Employee Not Found");
+            var email = (incoming.Email ?? "").Trim();
+            var _employee = await context.Employees
+                .FirstOrDefaultAsync(employee => employee.EmployeeEmail.ToLower() == email.ToLower());
 
-            //Verify employee password
-            if (!BCrypt.Net.BCrypt.Verify(incoming.Password, _employee.EmployeePasswordHash))
+            // Same message for unknown email and wrong password, so attackers can't probe for accounts.
+            if (_employee == null || string.IsNullOrEmpty(_employee.EmployeePasswordHash)
+                || !BCrypt.Net.BCrypt.Verify(incoming.Password ?? "", _employee.EmployeePasswordHash))
             {
-                return Unauthorized("Incorrect Password");
+                return Unauthorized("Incorrect email or password.");
             }
 
-
-            //Changes i made quickly
-            if (string.IsNullOrEmpty(_employee.TwoFactorSecret))
+            if (BypassesTwoFactor(_employee.EmployeeEmail))
             {
-                //Generate random 32 character string for 2fa secret
-                _employee.TwoFactorSecret = Guid.NewGuid().ToString().Replace("-", "");
-                await context.SaveChangesAsync();
+                var user = await CompleteLoginAsync(_employee);
+                return Ok(new { requires2FA = false, user });
             }
 
-            //Set the pending session state
-            HttpContext.Session.SetString("Pending2FAEmail", _employee.EmployeeEmail);
+            if (otpService == null)
+            {
+                return StatusCode(503, "Email verification is not available.");
+            }
 
-            return Ok(new { requires2FA = true, email = _employee.EmployeeEmail });
+            var (sent, error) = await otpService.SendCodeAsync(_employee.EmployeeEmail, HttpContext.RequestAborted);
+            if (!sent)
+            {
+                return StatusCode(503, error);
+            }
+
+            HttpContext.Session.SetString(SessionKeys.Pending2FAEmail, _employee.EmployeeEmail);
+            return Ok(new { requires2FA = true, email = MaskEmail(_employee.EmployeeEmail) });
         }
 
+        // Sends a fresh code to the email waiting for verification.
+        [AllowAnonymous]
+        [HttpPost("employees/resend-code")]
+        public async Task<IActionResult> ResendCode()
+        {
+            var pendingEmail = HttpContext.Session.GetString(SessionKeys.Pending2FAEmail);
+            if (string.IsNullOrEmpty(pendingEmail)) return Unauthorized("Session expired. Please log in again.");
+            if (otpService == null) return StatusCode(503, "Email verification is not available.");
+
+            var (sent, error) = await otpService.SendCodeAsync(pendingEmail, HttpContext.RequestAborted);
+            if (!sent) return StatusCode(503, error);
+
+            return Ok(new { email = MaskEmail(pendingEmail) });
+        }
+
+        [AllowAnonymous]
         [HttpPost("logout")]
         public IActionResult LogOutUser()
         {
@@ -178,35 +229,43 @@ namespace Artifax.Controllers
             return NoContent();
         }
 
+        // Step 2 of login: check the emailed code with Supabase, then start the session.
+        [AllowAnonymous]
         [HttpPost("employees/verify-2fa")]
-        public async Task<ActionResult<EmployeeReadDto>> Verify2Fa([FromBody] Dictionary<string, string> body)
+        public async Task<IActionResult> Verify2Fa([FromBody] Dictionary<string, string> body)
         {
-            if (!body.TryGetValue("code", out var code)) return BadRequest("Code is required");
-
-            var pendingEmail = HttpContext.Session.GetString("Pending2FAEmail");
-            if (string.IsNullOrEmpty(pendingEmail)) return Unauthorized("Session expired.");
-
-            var _employee = await context.Employees.FirstOrDefaultAsync(e => e.EmployeeEmail == pendingEmail);
-            if (_employee == null) return Unauthorized();
-
-            // Verify the code
-            var tfa = new TwoFactorAuthenticator();
-            bool isValid = tfa.ValidateTwoFactorPIN(_employee.TwoFactorSecret, code);
-
-            if (!isValid)
+            if (body == null || !body.TryGetValue("code", out var code) || string.IsNullOrWhiteSpace(code))
             {
-                return Unauthorized("Invalid 2FA Verification Code");
+                return BadRequest("Code is required");
             }
 
-            HttpContext.Session.Remove("Pending2FAEmail");
-            HttpContext.Session.SetString("UserLevel", _employee.EmployeeLevel);
-            HttpContext.Session.SetString("UserEmail", _employee.EmployeeEmail);
-            HttpContext.Session.SetString("Username", _employee.EmployeeName);
+            var pendingEmail = HttpContext.Session.GetString(SessionKeys.Pending2FAEmail);
+            if (string.IsNullOrEmpty(pendingEmail)) return Unauthorized("Session expired. Please log in again.");
+            if (otpService == null) return StatusCode(503, "Email verification is not available.");
 
-            return Ok(EmployeeReadDto.ToDto(_employee));
+            var verifiedEmail = await otpService.VerifyCodeAsync(pendingEmail, code.Trim(), HttpContext.RequestAborted);
+            if (verifiedEmail == null || !string.Equals(verifiedEmail, pendingEmail, StringComparison.OrdinalIgnoreCase))
+            {
+                return Unauthorized("Invalid or expired verification code.");
+            }
+
+            var _employee = await context.Employees
+                .FirstOrDefaultAsync(e => e.EmployeeEmail.ToLower() == pendingEmail.ToLower());
+            if (_employee == null) return Unauthorized();
+
+            var user = await CompleteLoginAsync(_employee);
+            return Ok(user);
+        }
+
+        static string MaskEmail(string email)
+        {
+            var at = email.IndexOf('@');
+            if (at <= 1) return email;
+            return $"{email[0]}{new string('•', Math.Min(at - 1, 6))}{email[at..]}";
         }
 
         #endregion
+
 
         #region UpdateRoutes
 

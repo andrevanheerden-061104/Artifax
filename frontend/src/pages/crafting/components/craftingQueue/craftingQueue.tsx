@@ -91,11 +91,8 @@ const CraftingQueue: FC = () => {
           return map;
         }, {});
 
-        const allowedBranchIds = currentUser?.branchId === 3
-          ? []
-          : currentUser?.branchId != null
-            ? [currentUser.branchId]
-            : [];
+        // The backend already returns only the warehouse being viewed
+        const allowedBranchIds: number[] = [];
 
         const orders = ordersResponse.data
           .slice()

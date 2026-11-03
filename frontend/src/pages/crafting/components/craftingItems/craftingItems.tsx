@@ -4,6 +4,9 @@ import unitIcon from '../../../../assets/images/uniitIcon.png';
 import unitIconWhite from '../../../../assets/images/uniitIconWhite.png';
 import { useApi, useThemeAwareIcon } from '../../../../hooks';
 import { useCurrentUser } from '../../../../utils/currentUser';
+import { useWorkspace } from '../../../../utils/workspace';
+import { getApiErrorMessage } from '../../../../hooks/useApi';
+import { showError } from '../../../../utils/toast';
 import { calculateProgress, formatTimeLeft, normalizeQueueStatus, QueueJobStatus } from '../../../../services/craftingUtils';
 
 interface TiltsState {
@@ -63,6 +66,7 @@ type CraftingJob = {
 const CraftingItems: FC = () => {
   const api = useApi();
   const currentUser = useCurrentUser();
+  const workspace = useWorkspace();
   const [tilts, setTilts] = useState<TiltsState>({});
   const [activeJobs, setActiveJobs] = useState<CraftingJob[]>([]);
   const [branchMap, setBranchMap] = useState<Record<number, string>>({});
@@ -95,11 +99,8 @@ const CraftingItems: FC = () => {
         return map;
       }, {});
 
-      const allowedBranchIds = currentUser?.branchId === 3
-        ? []
-        : currentUser?.branchId != null
-          ? [currentUser.branchId]
-          : [];
+      // The backend already returns only the warehouse being viewed
+        const allowedBranchIds: number[] = [];
 
       const sortedOrders = ordersResponse.data
         .slice()
@@ -235,6 +236,7 @@ const CraftingItems: FC = () => {
       await loadActiveJobs();
     } catch (error) {
       console.error(`Unable to cancel order ${job.orderID}`, error);
+      showError(getApiErrorMessage(error, 'Unable to cancel this order.'));
     }
   };
 
@@ -246,6 +248,7 @@ const CraftingItems: FC = () => {
       await loadActiveJobs();
     } catch (error) {
       console.error(`Unable to update order ${job.orderID} status to ${nextStatus}`, error);
+      showError(getApiErrorMessage(error, 'Unable to update this order.'));
     }
   };
 
@@ -263,6 +266,7 @@ const CraftingItems: FC = () => {
       await loadActiveJobs();
     } catch (error) {
       console.error(`Unable to update expedite for order ${job.orderID}`, error);
+      showError(getApiErrorMessage(error, 'Unable to change expedite.'));
     }
   };
 
@@ -308,6 +312,7 @@ const CraftingItems: FC = () => {
                 <input
                   type="checkbox"
                   checked={job.expedited}
+                  disabled={!workspace.canModify}
                   onChange={() => void handleToggleExpedite(job)}
                   aria-label={`Order Expedite for ${job.name}`}
                 />
@@ -329,6 +334,7 @@ const CraftingItems: FC = () => {
             </div>
           </div>
 
+          {workspace.canModify ? (
           <div className="card-actions">
             <button className="btn-cancel" type="button" onClick={() => void handleCancel(job)}>
               Cancel
@@ -341,6 +347,9 @@ const CraftingItems: FC = () => {
               {job.status === 'Paused' ? 'Resume' : 'Pause'}
             </button>
           </div>
+          ) : (
+            <p className="text-xs text-muted">View only — switch to {job.branchName} to manage this job.</p>
+          )}
         </div>
       ))}
     </div>

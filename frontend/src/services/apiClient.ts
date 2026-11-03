@@ -1,16 +1,8 @@
 import axios from 'axios';
+import { api } from '../hooks/useApi';
 
-const rawApiBase = process.env.REACT_APP_API_BASE || 'https://artifax-5lqg.onrender.com';
-const normalizedApiBase = rawApiBase.replace(/\/+$/, '');
-const API_BASE = normalizedApiBase.endsWith('/api') ? normalizedApiBase : `${normalizedApiBase}/api`;
-
-const apiClient = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Re-export the shared client so every request carries the session cookie and warehouse header.
+const apiClient = api;
 
 export function toFetchStyleError(error: unknown): Error {
   if (axios.isAxiosError(error)) {

@@ -1,13 +1,13 @@
-version: '3.8'
-
+# Runs the backend in Docker on your own computer (optional — Render builds the Dockerfile itself).
+# Put your variables in Backend/.env first, then: docker compose up --build
 services:
   api:
-    build: 
-      context: ./backend
+    build:
+      context: ./Backend
       dockerfile: Dockerfile
     ports:
-      - "8080:8080" 
+      - "8080:8080"
     env_file:
-      - .env
+      - ./Backend/.env
     environment:
       - ASPNETCORE_ENVIRONMENT=Development

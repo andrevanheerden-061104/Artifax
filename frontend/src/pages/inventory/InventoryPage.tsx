@@ -10,11 +10,14 @@ import AlertStrip from '../../components/layout/AlertStrip';
 import PageHeader from '../../components/layout/PageHeader';
 import InventoryMaterialsPopover from './components/InventoryMaterialsPopover';
 import InventoryItemEditModal from './components/InventoryItemEditModal';
-import InventoryItemCreateModal from './components/InventoryItemCreateModal';
+import InventoryItemCreateModal, { CreateItemOptions } from './components/InventoryItemCreateModal';
 import InventoryItemIngredientModal from './components/InventoryItemIngredientModal';
-import { createInventoryItem, getItemCategoryOptions, getItems, getInventoryOverview, getItemMaterialDetails, updateInventoryItem, InventoryCreatedItem, InventoryItem, InventoryMaterialDetails, InventoryOverview, InventoryItemCreate, InventoryItemUpdate } from '../../services/inventoryApi';
-import { getCurrentUserFromSession } from '../../services/authApi'; // <-- Adjust path if needed
+import RestockModal from './components/RestockModal';
+import { createInventoryItem, getBlueprintProductIds, getItemCategoryOptions, getItems, getInventoryOverview, getItemMaterialDetails, restockBranch, updateInventoryItem, InventoryCreatedItem, InventoryItem, InventoryMaterialDetails, InventoryOverview, InventoryItemCreate, InventoryItemUpdate, RestockLine } from '../../services/inventoryApi';
 import { getCurrentDateSAST } from '../../Date/dateUtils';
+import { CategoryBadge } from '../../components/common/categories';
+import { useWorkspace } from '../../utils/workspace';
+import { showError, showSuccess } from '../../utils/toast';
 import editIcon from '../../assets/images/Edit Icon.png';
 import viewIcon from '../../assets/images/View Icon.png';
 
@@ -26,7 +29,7 @@ function InventoryPage() {
   const [zone, setZone] = useState('ALL');
   const [sortBy, setSortBy] = useState('NAME');
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
-  const [inventoryOverview, setInventoryOverview] = useState<InventoryOverview>({ items: [], previewRows: [], alerts: [], stats: [], tabs: [] });
+  const [inventoryOverview, setInventoryOverview] = useState<InventoryOverview>({ items: [], previewRows: [], alerts: [], lowStock: [], stats: [], tabs: [] });
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [expandedViewItemId, setExpandedViewItemId] = useState<number | null>(null);
   const [materialDetailsById, setMaterialDetailsById] = useState<Record<number, InventoryMaterialDetails | null>>({});
@@ -37,8 +40,13 @@ function InventoryPage() {
   const [createItemOpen, setCreateItemOpen] = useState(false);
   const [ingredientItem, setIngredientItem] = useState<InventoryCreatedItem | null>(null);
 
-  // Added state to track the logged-in user's branch
-  const [loggedInBranchId, setLoggedInBranchId] = useState<number | null>(null);
+  const [restockOpen, setRestockOpen] = useState(false);
+  const [restocking, setRestocking] = useState(false);
+  const [blueprintItemIds, setBlueprintItemIds] = useState<Set<number>>(new Set());
+
+  // The backend already limits rows to the selected warehouse (or all, for the admin overview)
+  const workspace = useWorkspace();
+  const readOnly = !workspace.canModify;
 
   useEffect(() => {
     let mounted = true;
@@ -60,18 +68,11 @@ function InventoryPage() {
         }
       });
 
-    // Fetch Logged-in User
-    getCurrentUserFromSession()
-      .then((user) => {
-        if (mounted && user) {
-          // Safely extract branchId (handling potential naming variations)
-          const branchId = (user as any).branchId ?? (user as any).BranchId;
-          if (branchId) {
-            setLoggedInBranchId(Number(branchId));
-          }
-        }
+    getBlueprintProductIds()
+      .then((ids) => {
+        if (mounted) setBlueprintItemIds(ids);
       })
-      .catch((error) => console.warn('Could not load user session for branch filtering', error));
+      .catch((error) => console.warn('Could not load blueprints for restock list', error));
 
     return () => {
       mounted = false;
@@ -147,16 +148,32 @@ function InventoryPage() {
     }
   };
 
-  const handleCreateItem = async (payload: InventoryItemCreate): Promise<InventoryCreatedItem> => {
+  const refreshInventory = async (): Promise<void> => {
+    const overview = await getInventoryOverview();
+    setInventoryItems(overview.items);
+    setInventoryOverview(overview);
+  };
+
+  const handleCreateItem = async (payload: InventoryItemCreate, options: CreateItemOptions): Promise<InventoryCreatedItem> => {
     setCreatingItem(true);
 
     try {
       const createdItem = await createInventoryItem(payload);
-      const overview = await getInventoryOverview();
-      setInventoryItems(overview.items);
-      setInventoryOverview(overview);
+
+      if (options.kind === 'material' && options.startingStock > 0 && workspace.activeBranchId != null) {
+        await restockBranch(workspace.activeBranchId, [{ itemID: createdItem.itemID, quantity: options.startingStock }]);
+      }
+
+      await refreshInventory();
       setCreateItemOpen(false);
-      setIngredientItem(createdItem);
+
+      if (options.kind === 'product') {
+        // Crafted items need a recipe next
+        setBlueprintItemIds((current) => new Set(current).add(createdItem.itemID));
+        setIngredientItem(createdItem);
+      } else {
+        showSuccess(`${createdItem.itemName} added${options.startingStock > 0 ? ` with ${options.startingStock} in stock` : ''}.`);
+      }
       return createdItem;
     } catch (error) {
       console.error('Failed to create inventory item', error);
@@ -165,6 +182,27 @@ function InventoryPage() {
       setCreatingItem(false);
     }
   };
+
+  const handleRestock = async (lines: RestockLine[]): Promise<void> => {
+    if (workspace.activeBranchId == null) return;
+    setRestocking(true);
+    try {
+      await restockBranch(workspace.activeBranchId, lines);
+      await refreshInventory();
+      setRestockOpen(false);
+      const units = lines.reduce((sum, line) => sum + line.quantity, 0);
+      showSuccess(`Restocked ${lines.length} material${lines.length === 1 ? '' : 's'} (+${units} units).`);
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'Restock failed.');
+      throw error;
+    } finally {
+      setRestocking(false);
+    }
+  };
+
+  const warehouseName = workspace.activeBranchId == null
+    ? null
+    : inventoryItems.find((item) => item.branchId === workspace.activeBranchId)?.location ?? workspace.user?.branchName ?? `Warehouse ${workspace.activeBranchId}`;
 
   const sourceItems = inventoryItems;
 
@@ -176,18 +214,6 @@ function InventoryPage() {
       ...locations.filter(Boolean).map((location) => ({ label: `Location: ${location}`, value: location })),
     ];
   }, [sourceItems]);
-
-  // FIX 2: Reconstruct alerts based on branchId rather than relying on the pre-formatted strings
-  const filteredAlerts = useMemo(() => {
-    if (!loggedInBranchId) {
-      // Fallback: If no branch ID is loaded (e.g. an Admin user), show all alerts
-      return inventoryOverview.alerts;
-    }
-
-    return inventoryOverview.items
-      .filter((item) => item.status === 'LOW' && item.branchId === loggedInBranchId)
-      .map((item) => `${item.name} (${item.quantity} remaining)`);
-  }, [inventoryOverview.items, inventoryOverview.alerts, loggedInBranchId]);
 
   const filteredItems = useMemo(() => {
     const searchLower = search.toLowerCase();
@@ -239,17 +265,6 @@ function InventoryPage() {
       });
   }, [activeTab, sourceItems, search, sortBy, status, zone]);
 
-  useEffect(() => {
-    console.log('InventoryPage filteredItems', {
-      activeTab,
-      search,
-      status,
-      zone,
-      sortBy,
-      filteredCount: filteredItems.length,
-      filteredItems,
-    });
-  }, [activeTab, search, status, zone, sortBy, filteredItems]);
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -257,13 +272,32 @@ function InventoryPage() {
         title="Inventory Management"
         subtitle={`Full Inventory · ${currentDate}`}
         rightSlot={
-          <button type="button" className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text transition hover:border-primary hover:bg-bg" onClick={openCreateModal}>
-            Add Item
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-medium text-text transition hover:border-primary"
+              onClick={openCreateModal}
+            >
+              New item
+            </button>
+            <button
+              type="button"
+              className={`inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium transition hover:bg-primaryDark ${readOnly ? 'is-readonly-disabled' : ''}`}
+              style={{ color: 'var(--on-primary)' }}
+              onClick={() => setRestockOpen(true)}
+              disabled={readOnly}
+              title={readOnly ? 'Switch to a warehouse to restock' : 'Add delivered materials to this warehouse'}
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Restock materials
+            </button>
+          </div>
         }
       />
 
-      <AlertStrip label={`Low Stock: ${filteredAlerts.length}`} items={filteredAlerts} />
+      <AlertStrip items={inventoryOverview.lowStock} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {inventoryOverview.stats.map((stat) => (
@@ -271,7 +305,7 @@ function InventoryPage() {
         ))}
       </div>
 
-      <SectionCard title="All Inventory Items" subtitle={`${sourceItems.length} items`}>
+      <SectionCard title={workspace.isAllView ? 'All warehouses' : `${warehouseName ?? 'Warehouse'} inventory`} subtitle={`${sourceItems.length} stock rows`}>
         <div className="space-y-3">
           <div className="grid items-end gap-2 lg:grid-cols-[minmax(0,2.4fr),repeat(3,minmax(0,1fr))]">
             <SearchInput value={search} onChange={setSearch} placeholder="Search items, SKU, location..." />
@@ -324,7 +358,7 @@ function InventoryPage() {
                           <p className="font-semibold text-text">{item.name}</p>
                           <p className="text-xs text-muted">{item.sku}</p>
                         </td>
-                        <td className="py-2.5 pr-3 text-muted">{item.category}</td>
+                        <td className="py-2.5 pr-3"><CategoryBadge category={item.category} /></td>
                         <td className="py-2.5 pr-3 text-right font-semibold text-text">{item.quantity}</td>
                         <td className="py-2.5 pr-3">
                           <p className="text-xs text-muted">{item.productionTime} min</p>
@@ -336,8 +370,10 @@ function InventoryPage() {
                         <td className="py-2.5 pr-3">
                           <button
                             type="button"
-                            className="icon-action-button"
+                            className={`icon-action-button ${readOnly ? 'is-readonly-disabled' : ''}`}
                             aria-label={`Edit ${item.name}`}
+                            title={readOnly ? 'Switch to a warehouse to edit' : `Edit ${item.name}`}
+                            disabled={readOnly}
                             onClick={() => handleEditClick(item)}
                           >
                             <img src={editIcon} alt="" aria-hidden="true" className="icon-action-button-icon" />
@@ -397,8 +433,19 @@ function InventoryPage() {
             open={createItemOpen}
             saving={creatingItem}
             categoryOptions={categoryOptions}
+            warehouseName={warehouseName}
             onClose={closeCreateModal}
             onCreate={handleCreateItem}
+          />
+
+          <RestockModal
+            open={restockOpen}
+            warehouseName={warehouseName ?? 'Warehouse'}
+            items={sourceItems}
+            blueprintItemIds={blueprintItemIds}
+            saving={restocking}
+            onClose={() => setRestockOpen(false)}
+            onSubmit={handleRestock}
           />
 
           <InventoryItemIngredientModal

@@ -11,21 +11,29 @@ export interface CraftingItem {
   icon: string;
 }
 
+import { CategoryId } from '../../../components/common/categories';
+
 export interface BlueprintMaterial {
   itemId?: number;
   name: string;
   need: number;
+  /** Stock in the warehouse(s) currently being viewed. */
   have: number;
+  category?: string;
+  /** Stock per warehouse (branchId -> quantity), used when crafting across warehouses. */
+  stockByBranch?: Record<number, number>;
 }
 
 export interface Blueprint {
   id: string;
   name: string;
   description: string;
-  category: 'furniture' | 'mechanical' | 'electronics';
+  category: CategoryId;
   have: number;
   craft: number;
   productionTime?: number;
+  price?: number | null;
+  stockByBranch?: Record<number, number>;
   materials: BlueprintMaterial[];
 }
 

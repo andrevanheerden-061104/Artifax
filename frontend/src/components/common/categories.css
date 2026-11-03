@@ -1,0 +1,161 @@
+/* Category visuals. Each element gets its colour through the --cat custom property. */
+
+.cat-tile {
+  --cat: #9b87f5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat) 35%, transparent);
+  border-radius: 12px;
+}
+
+.cat-tile--sm { width: 28px; height: 28px; border-radius: 8px; }
+.cat-tile--md { width: 42px; height: 42px; }
+.cat-tile--lg { width: 60px; height: 60px; border-radius: 16px; }
+
+.cat-badge {
+  --cat: #9b87f5;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--text);
+  background: color-mix(in srgb, var(--cat) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat) 40%, transparent);
+}
+
+.cat-badge svg {
+  color: var(--cat);
+}
+
+/* Picker */
+.cat-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.cat-picker--compact {
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+}
+
+.cat-picker-option {
+  --cat: #9b87f5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.cat-picker--compact .cat-picker-option {
+  padding: 8px 10px;
+}
+
+.cat-picker-option:hover {
+  border-color: color-mix(in srgb, var(--cat) 60%, var(--border));
+  transform: translateY(-1px);
+}
+
+.cat-picker-option.is-selected {
+  border-color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 14%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat) 22%, transparent);
+}
+
+.cat-picker-option:focus-visible {
+  outline: 2px solid var(--cat);
+  outline-offset: 2px;
+}
+
+.cat-picker-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--cat);
+  background: color-mix(in srgb, var(--cat) 16%, transparent);
+  flex-shrink: 0;
+}
+
+.cat-picker--compact .cat-picker-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.cat-picker-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cat-picker-label {
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cat-picker-hint {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* New / edit blueprint form header tinted with the chosen category */
+.blueprint-form--themed {
+  --cat: #9b87f5;
+  border-color: color-mix(in srgb, var(--cat) 30%, var(--border)) !important;
+}
+
+.blueprint-form--themed .new-blueprint-header {
+  margin: -4px -4px 4px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(120deg, color-mix(in srgb, var(--cat) 22%, var(--surface)) 0%, color-mix(in srgb, var(--cat) 4%, var(--surface)) 75%);
+  border: 1px solid color-mix(in srgb, var(--cat) 30%, var(--border));
+  transition: background 0.25s ease;
+}
+
+.blueprint-form-heading-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.blueprint-form-heading-text .new-blueprint-tag {
+  justify-content: flex-start;
+}
+
+.blueprint-form-preview {
+  font-family: 'Outfit', 'Sora', sans-serif;
+  font-size: 20px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.blueprint-form-sub {
+  font-size: 12px;
+  color: var(--muted);
+}

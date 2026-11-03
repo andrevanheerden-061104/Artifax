@@ -86,7 +86,7 @@ function DashboardPage() {
     <div className="space-y-4 sm:space-y-5">
       <PageHeader title="Inventory & Crafting" subtitle={`Main Dashboard · ${currentDate}`} />
 
-      <AlertStrip label={`Low Stock: ${inventoryOverview.alerts.length}`} items={inventoryOverview.alerts} />
+      <AlertStrip items={inventoryOverview.lowStock} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {inventoryOverview.stats.map((stat) => (
@@ -148,7 +148,7 @@ function DashboardPage() {
                         <div className="job-info-main">
                           <div className="job-titles">
                             <h3 className="text-sm font-medium">{job.name}</h3>
-                            <p className="text-xs text-muted">ID: {job.id} · Qty: {job.qty}</p>
+                            <p className="text-xs text-muted">{job.id} · Qty: {job.qty} · {job.location}</p>
                           </div>
                         </div>
                         <span className={`status-badge ${job.status.toLowerCase().replace(/\s+/g, '-')}`}>{job.status}</span>
@@ -161,16 +161,6 @@ function DashboardPage() {
                         </div>
                         <div className="progress-bar-bg mt-2">
                           <div className="progress-bar-fill" style={{ width: `${job.progress}%` }}></div>
-                        </div>
-                      </div>
-
-                      <div className="materials-section mt-3">
-                        <p className="section-label text-[11px] text-muted">MATERIALS</p>
-                        <div className="material-tags mt-2">
-                          {job.materials.slice(0, 6).map((m, i) => (
-                            <span key={i} className="material-tag">{m}</span>
-                          ))}
-                          {job.materials.length > 6 && <span className="material-tag">+{job.materials.length - 6} more</span>}
                         </div>
                       </div>
 
@@ -195,7 +185,7 @@ function DashboardPage() {
                         <div className="job-info-main">
                           <div className="job-titles">
                             <h3 className="text-sm font-medium">{job.name}</h3>
-                            <p className="text-xs text-muted">ID: {job.id} · Qty: {job.qty}</p>
+                            <p className="text-xs text-muted">{job.id} · Qty: {job.qty}</p>
                           </div>
                         </div>
                         <span className={`status-badge ${job.status.toLowerCase().replace(/\s+/g, '-')}`}>{job.status}</span>

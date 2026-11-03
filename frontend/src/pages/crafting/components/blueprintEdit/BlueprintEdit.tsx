@@ -1,11 +1,11 @@
 import React, { FC, useEffect, useState } from 'react';
 import Button from '../../../../components/common/Button';
 import FilterSelect from '../../../../components/common/FilterSelect';
-import { useApi, useThemeAwareIcon } from '../../../../hooks';
+import { useApi } from '../../../../hooks';
 import { showError, showSuccess } from '../../../../utils/toast';
 import './blueprintEdit.css';
-import unitIcon from '../../../../assets/images/uniitIcon.png';
-import unitIconWhite from '../../../../assets/images/uniitIconWhite.png';
+import { CategoryPicker, CategoryTile, categoryStyle, getCategory, normalizeCategory } from '../../../../components/common/categories';
+import { getApiErrorMessage } from '../../../../hooks/useApi';
 
 interface MaterialRow {
   id: string;
@@ -24,15 +24,6 @@ interface ItemOption {
   label: string;
 }
 
-const categoryOptions = [
-  { value: 'metal', label: 'Metal' },
-  { value: 'mechanical', label: 'Mechanical' },
-  { value: 'electronics', label: 'Electronics' },
-  { value: 'furniture', label: 'Furniture' },
-  { value: 'paper', label: 'Paper' },
-  { value: 'plastic', label: 'Plastic' },
-  { value: 'other', label: 'Other' },
-];
 
 const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) => {
   const api = useApi();
@@ -45,7 +36,6 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
   const [itemOptions, setItemOptions] = useState<ItemOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const unitIconSrc = useThemeAwareIcon(unitIcon, unitIconWhite);
 
   useEffect(() => {
     const loadBlueprint = async () => {
@@ -70,7 +60,7 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
         const ingredients = ingredientsResponse.data || [];
 
         setBlueprintName(item.itemName || '');
-        setCategory(item.itemCategory || 'metal');
+        setCategory(normalizeCategory(item.itemCategory || 'metal'));
         setCraftTimeMinutes(item.productionTime || 1);
         setPrice(item.price ?? item.Price ?? 0);
         setMaterials(
@@ -151,10 +141,10 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
 
         let ingredientId = nameToId[materialName];
         if (!ingredientId) {
-          const createdIngredientResponse = await api.post('/Item/item/', {
+          const createdIngredientResponse = await api.post('/Item/item/CreateItemDefaultQuantity', {
             itemName: materialName,
             itemCategory: 'other',
-            productionTime: 1,
+            productionTime: 0,
           });
           ingredientId = createdIngredientResponse.data?.itemID;
           if (ingredientId) {
@@ -181,7 +171,7 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
       onSaved();
     } catch (saveError) {
       console.error('Failed to save blueprint edit:', saveError);
-      showError('Unable to save blueprint changes. Please try again.');
+      showError(getApiErrorMessage(saveError, 'Unable to save blueprint changes. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -209,11 +199,15 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
   }
 
   return (
-    <div className="new-blueprint-panel">
+    <div className="new-blueprint-panel blueprint-form--themed" style={categoryStyle(category)}>
       <div className="new-blueprint-header">
         <div className="new-blueprint-heading">
-          <img src={unitIconSrc} alt="Blueprint icon" className="new-blueprint-icon" />
-          <span className="new-blueprint-tag">Edit Blueprint</span>
+          <CategoryTile category={category} size="lg" />
+          <div className="blueprint-form-heading-text">
+            <span className="new-blueprint-tag">Edit Blueprint</span>
+            <strong className="blueprint-form-preview">{blueprintName.trim() || 'Untitled blueprint'}</strong>
+            <span className="blueprint-form-sub">{getCategory(category).label} · {craftTimeMinutes} min per unit</span>
+          </div>
         </div>
       </div>
 
@@ -232,6 +226,11 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
           </div>
         </div>
 
+        <div className="field-group">
+          <label>Category</label>
+          <CategoryPicker value={category} onChange={setCategory} />
+        </div>
+
         <div className="field-row field-row--split">
           <div className="field-group field-group--craft-time">
             <label htmlFor="craftTimeMinutes">Craft Time (min)</label>
@@ -246,16 +245,6 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
             />
           </div>
 
-          <div className="field-group field-group--category">
-            <label htmlFor="blueprintCategory">Category of Blueprint</label>
-            <FilterSelect
-              value={category}
-              onChange={setCategory}
-              options={categoryOptions}
-              className="field-select"
-              ariaLabel="Select blueprint category"
-            />
-          </div>
           <div className="field-group field-group--price">
             <label htmlFor="blueprintPrice">Price (ZAR)</label>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -273,7 +262,7 @@ const BlueprintEdit: FC<BlueprintEditProps> = ({ itemId, onCancel, onSaved }) =>
           </div>
         </div>
 
-        <label htmlFor="blueprintCategory">Required materials</label>
+        <label>Required materials</label>
         <div className="material-list">
           {materials.map((material) => (
             <div key={material.id} className="materials-row">

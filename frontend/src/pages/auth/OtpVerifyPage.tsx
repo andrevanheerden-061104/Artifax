@@ -1,9 +1,7 @@
 import { ClipboardEvent, FormEvent, KeyboardEvent, useMemo, useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { QRCodeCanvas } from 'qrcode.react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import './LoginPage.css';
-import { getBranches, GetOtpQrCode, VerifyOtpCode, getCurrentUserFromSession, getEmployeeByEmail } from '../../services/authApi';
-import { setCurrentUser } from '../../utils/currentUser';
+import { resendLoginCode, storeSessionUser, verifyLoginCode } from '../../services/authApi';
 
 const OTP_LENGTH = 6;
 
@@ -12,6 +10,13 @@ type VerifyStatus = 'input' | 'success' | 'failed';
 
 function OtpVerifyPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [maskedEmail, setMaskedEmail] = useState<string | undefined>(
+    () => (location.state as { email?: string } | null)?.email,
+  );
+  const [resendCooldown, setResendCooldown] = useState(30);
+  const [resendMessage, setResendMessage] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
   
   // 🌟 View state control
   const [status, setStatus] = useState<VerifyStatus>('input');
@@ -19,27 +24,34 @@ function OtpVerifyPage() {
   const [digits, setDigits] = useState<string[]>(Array.from({ length: OTP_LENGTH }, () => ''));
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [qrUri, setQrUri] = useState<string | null>(null);
-  const [hasApp, setHasApp] = useState(true);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const code = useMemo(() => digits.join(''), [digits]);
   const isCodeComplete = code.length === OTP_LENGTH;
 
-  async function GetCode() {
-    try {
-      const _data = await GetOtpQrCode();
-      if (_data.qrCodeUri.length > 0) {
-        setQrUri(_data.qrCodeUri);
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  }
-
+  // Count down before "Send a new code" is allowed again
   useEffect(() => {
-    GetCode();
-  }, []);
+    if (resendCooldown <= 0) return undefined;
+    const timer = window.setTimeout(() => setResendCooldown((value) => value - 1), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleResend = async () => {
+    setResendMessage('');
+    try {
+      const result = await resendLoginCode();
+      if (result?.email) setMaskedEmail(result.email);
+      setResendMessage('A new code is on its way.');
+      setResendCooldown(30);
+    } catch (error) {
+      const err = error as { status?: number; message?: string };
+      if (err?.status === 401) {
+        navigate('/login', { replace: true });
+        return;
+      }
+      setResendMessage(err?.message || 'Could not send a new code.');
+    }
+  };
 
   const focusInput = (index: number) => {
     const target = inputRefs.current[index];
@@ -103,61 +115,21 @@ function OtpVerifyPage() {
 
     if (!isCodeComplete) return;
 
+    setIsVerifying(true);
     try {
-      // 1. Send clean raw code string to the backend
-      await VerifyOtpCode(code);
-
-      // 2. Hydrate application state with security details
-      let sessionUser: any = {};
-      try {
-        sessionUser = await getCurrentUserFromSession();
-      } catch (e) {
-        sessionUser = {};
-      }
-
-      // Safe check: If session user data couldn't be loaded, redirect to fail screen
-      if (!sessionUser) {
-        setErrorMessage("Verification passed, but profile session could not be fetched.");
-        setStatus('failed');
+      // The backend checks the code with Supabase and starts the session
+      const sessionUser = await verifyLoginCode(code);
+      storeSessionUser(sessionUser);
+      setStatus('success');
+    } catch (err) {
+      const error = err as { status?: number; message?: string };
+      if (error?.status === 401 && /session expired/i.test(error.message ?? '')) {
+        navigate('/login', { replace: true });
         return;
       }
-
-
-
-      const currentEmail = sessionUser.UserEmail ?? (sessionUser as any)?.userEmail;
-      const currentName = sessionUser.Username ?? (sessionUser as any)?.username ?? currentEmail;
-      const currentRole = sessionUser.UserLevel ?? (sessionUser as any)?.userLevel ?? 'Employee';
-
-      let branchName: string | undefined;
-      let employeeId: number | undefined;
-      let branchId: number | undefined;
-
-      try {
-        const employeeDetails = await getEmployeeByEmail(currentEmail);
-        employeeId = employeeDetails.employeeId;
-        branchId = employeeDetails.branchId;
-        const branches = await getBranches();
-        branchName = branches.find((branch) => branch.BranchID === branchId)?.BranchName;
-      } catch (branchError) {
-        branchName = undefined;
-      }
-
-      setCurrentUser({
-        name: currentName,
-        role: currentRole,
-        email: currentEmail,
-        employeeId,
-        branchId,
-        branchName,
-      });
-
-      // 🌟 SUCCESS: Switch status view inside the component
-      setStatus('success');
-
-    } catch (err) {
-      // 🌟 FAILURE: Switch status view inside the component
-      console.log(err);
       setStatus('failed');
+    } finally {
+      setIsVerifying(false);
     }
   };
 
@@ -186,18 +158,9 @@ function OtpVerifyPage() {
           {/* VIEW 1: CODE INPUT STAGE */}
           {status === 'input' && (
             <>
-              <p className="login-subtitle">Open Google Authenticator on your mobile device to retrieve your login token.</p>
-
-              {hasApp ? (
-                <p onClick={() => setHasApp(false)} className='mb-5 underline hover:cursor-pointer w-fit text-primary-dark'>First time?</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--muted)', marginBottom: '10px' }}>Scan this code to configure your Google Authenticator profile:</p>
-                  <div style={{ padding: '10px', background: 'white', borderRadius: '8px' }}>
-                    <QRCodeCanvas value={qrUri || ''} size={160} />
-                  </div>
-                </div>
-              )}
+              <p className="login-subtitle">
+                We emailed a 6-digit code to <strong>{maskedEmail ?? 'your email address'}</strong>. Enter it below to finish signing in.
+              </p>
 
               <form className="login-form" onSubmit={handleSubmit} noValidate>
                 <div className="login-otp-sequence" role="group" aria-label="One-time password input">
@@ -224,9 +187,17 @@ function OtpVerifyPage() {
                   <p className="login-inline-error" role="alert">Enter the full 6-digit code.</p>
                 )}
 
-                <button type="submit" className="login-submit" disabled={!isCodeComplete}>
-                  Verify Account
+                <button type="submit" className="login-submit" disabled={!isCodeComplete || isVerifying}>
+                  {isVerifying ? 'Checking...' : 'Verify Account'}
                 </button>
+
+                <div className="login-resend-row">
+                  <span>Didn't get it?</span>
+                  <button type="button" onClick={() => void handleResend()} disabled={resendCooldown > 0}>
+                    {resendCooldown > 0 ? `Send a new code in ${resendCooldown}s` : 'Send a new code'}
+                  </button>
+                </div>
+                {resendMessage ? <p className="login-subtitle" role="status">{resendMessage}</p> : null}
 
                 <button type="button" className="login-secondary-action" onClick={() => navigate('/login')}>
                   Back To Login
@@ -269,7 +240,7 @@ function OtpVerifyPage() {
                   </svg>
                 </div>
                 <h1>Verification Failed</h1>
-                <p>The code entered did not match. Try again with the latest OTP.</p>
+                <p>That code didn't match or has expired. Codes last a few minutes — try again with the newest email.</p>
               </div>
 
               <div className="login-actions-column">
