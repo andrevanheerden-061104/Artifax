@@ -4,3 +4,4 @@
 bin
 obj
 frontend/out/node_modules
+presentation-screens/
